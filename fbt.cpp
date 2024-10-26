@@ -266,6 +266,15 @@ int main(int argc, char* argv[]) {
     if (args.task == "report") {
         Data data = read_csv(args);
         try {
+            bool printComma = false;
+            cout << "Report on " << data.sensitive.size() << " sensitive attributes: ";
+            for(const auto& attr : data.sensitive) {
+                if(printComma)
+                    cout << ",";
+                printComma = true;
+                cout << attr.first;
+            }
+            cout << "\n";
             Report report = assessment(data, registry.metrics, registry.reductions);
             print(report);
         }
