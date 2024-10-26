@@ -1,8 +1,12 @@
 import numpy as np
-import fairbenchtiny
+import fairbenchtiny as fbt
 
-predictions = np.array([1.0, 0.0, 1.0, 1.0])
-labels = np.array([1.0, 0.0, 1.0, 0.0])
+predictions = [1, 0, 1, 1]
+labels = [1, 0, 1, 0]
+sensitive = {
+    "male": [1, 0, 1, 0], 
+    "female": [0, 1, 0, 1]
+}
 
-result = fairbenchtiny.report(predictions, labels)
+result = fbt.report(predictions, labels, sensitive)
 print(result)
