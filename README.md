@@ -19,6 +19,6 @@ folder of this repository into your header library folder.
 
 ## Quickstart
 
-[C++ Usage](docs/cpp.md) <br>
-[Python Usage](docs/python.md) <br>
-[Command line tool](docs/cli.md) <br>
+[C++](docs/cpp.md) <br>
+[Python](docs/python.md) <br>
+[Command line](docs/cli.md) <br>

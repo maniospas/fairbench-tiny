@@ -14,7 +14,7 @@
     limitations under the License.
 */
 
-// compile: g++ fairbenchtiny.cpp -O2 -o fairbenchtiny
+// compile: g++ fbt.cpp -O2 -o fbt
 
 #include <iostream>
 #include <fstream>
@@ -28,7 +28,6 @@
 using namespace std;
 using namespace fb;
 
-// Helper function to split a string by a delimiter
 vector<string> split(const string& s, char delimiter) {
     vector<string> tokens;
     string token;
@@ -39,7 +38,6 @@ vector<string> split(const string& s, char delimiter) {
     return tokens;
 }
 
-// Function to auto-detect delimiter from the first line
 char auto_detect_delimiter(const string& line) {
     vector<char> delimiters = {',', '\t', ';', '|'};
     for (char delimiter : delimiters) {
@@ -51,7 +49,6 @@ char auto_detect_delimiter(const string& line) {
     return '\0'; // Return null character if no delimiter found
 }
 
-// Structure to hold command-line arguments
 struct Arguments {
     string task;
     string filename;
@@ -61,7 +58,6 @@ struct Arguments {
     char delimiter = '\0'; // Default: no delimiter specified
 };
 
-// Function to parse command-line arguments
 Arguments parse_arguments(int argc, char* argv[]) {
     Arguments args;
 
@@ -146,7 +142,7 @@ Arguments parse_arguments(int argc, char* argv[]) {
     return args;
 }
 
-// Function to read CSV and populate Data object
+
 Data read_csv(const Arguments& args) {
     const string& filename = args.filename;
     const string& predict_column = args.predict_column;
