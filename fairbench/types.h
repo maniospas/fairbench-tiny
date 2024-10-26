@@ -29,12 +29,61 @@ namespace fb {
         Data() {}
         Data(const Vec &predict, const Vec &label, const Sensitive &sensitive) 
             : predict(predict), label(label), sensitive(sensitive) {}
+            
+        void validate() {
+            // check sensitive attributes
+            for (const auto &entry : sensitive) {
+                const Vec &filter = entry.second;
+                int n = filter.size();
+                for(int i=0; i<n; ++i) {
+                    double value = filter[i];
+                    if(value<0 || value>1) 
+                        throw invalid_argument("Value "
+                                               + std::to_string(value)
+                                               + " at position "
+                                               + std::to_string(i)
+                                               + " of sensitive attribte \""
+                                               + entry.first
+                                               + "\" is not in the range [0,1].");
+                }
+            }
+            // check predictions
+            {
+                int n = predict.size();
+                for(int i=0; i<n; ++i) {
+                    double value = predict[i];
+                    if(value<0 || value>1) 
+                        throw invalid_argument("Value "
+                                               + std::to_string(value)
+                                               + " at position "
+                                               + std::to_string(i)
+                                               + " of predict is not in the range [0,1].");
+                }
+            }
+            // check labels
+            {
+                int n = label.size();
+                for(int i=0; i<n; ++i) {
+                    double value = label[i];
+                    if(value<0 || value>1) 
+                        throw invalid_argument("Value "
+                                               + std::to_string(value)
+                                               + " at position "
+                                               + std::to_string(i)
+                                               + " of label is not in the range [0,1].");
+                }
+            }
+        }
     };
 
     // Helper methods
-    void checkSize(const Vec &predict, const Vec &label) {
-        if (predict.size() != label.size()) 
-            throw invalid_argument("Vectors are of different sizes.");
+    void checkSize(const Vec &predict, const Vec &filter) {
+        if (predict.size() != filter.size()) 
+            throw invalid_argument("Vector size "
+                                    + std::to_string(predict.size())
+                                    + " is different than the sensitive attribute size "
+                                    + std::to_string(filter.size())
+                                    + ".");
     }
 
     // Register all declared symbols
@@ -55,8 +104,8 @@ namespace fb {
     double name(const fb::Vec &predict, const fb::Vec &label, const fb::Vec &filter); \
     static bool _reg_metric_##name = [](){ fb::registry.metrics[STRINGIFY(name)] = name; return true; }(); \
     double name(const fb::Vec &predict, const fb::Vec &label, const fb::Vec &filter) { \
-    checkSize(predict, label);\
     checkSize(predict, filter);\
+    checkSize(label, filter);\
     implementation}
 
 #define REDUCTION(name, implementation) \

@@ -27,8 +27,9 @@ namespace reduce {
             results.push_back(result);
         }
         double maxDiff = 0.0;
-        for (size_t i = 0; i < results.size(); ++i) {
-            for (size_t j = 0; j < results.size(); ++j) {
+        int n = results.size();
+        for (size_t i = 0; i < n; ++i) {
+            for (size_t j = 0; j < n; ++j) {
                 double diff = abs(results[i] - results[j]);
                 if (diff > maxDiff) 
                     maxDiff = diff;

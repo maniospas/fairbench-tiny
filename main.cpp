@@ -1,9 +1,6 @@
-#include "fairbench/types.h"
-#include "fairbench/reductions.h"
-#include "fairbench/metrics.h"
-#include "fairbench/report.h"
+#include "fairbench/all.h"
 
-// COMPILE: g++ main.cpp -O2 -o main.exe
+// COMPILE: g++ main.cpp -O2 -o main
 using namespace fb;
 
 int main() {
