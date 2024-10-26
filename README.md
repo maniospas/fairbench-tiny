@@ -9,6 +9,8 @@ originally oferred by `fairbench` . These are made type-safe and are available i
 
 *This repository's code is still under development and not mature enough to use in production.*
 
+**License:** Apache 2.0
+
 
 ## Installation
 
@@ -54,4 +56,9 @@ int main() {
 ```bash
 > g++ main.cpp -O2 -o main
 > .\main
+
+               max            maxdiff        differential   gini
+error          0.500          0.500          1.000          0.500
+fpr            0.000          0.000          0.000          0.000
+fnr            0.000          0.000          0.000          0.000
 ```
