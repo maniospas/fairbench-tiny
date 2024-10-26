@@ -14,7 +14,7 @@
     limitations under the License.
 */
 
-#include "fairbench/all.h"
+#include "../fairbench/all.h"
 using namespace fb;
 
 int main() {

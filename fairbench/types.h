@@ -58,7 +58,7 @@ namespace fb {
                                                + std::to_string(value)
                                                + " at position "
                                                + std::to_string(i)
-                                               + " of sensitive attribte \""
+                                               + " of sensitive attribute \""
                                                + entry.first
                                                + "\" is not in the range [0,1].");
                 }
