@@ -46,6 +46,7 @@ py::dict report(py::array_t<double> predict,
         py::array_t<double> array = item.second.cast<py::array_t<double>>();
         data.sensitive[key] = std::vector<double>(array.data(), array.data() + array.size());
     }
+    data.validate();
 
     // generate the report
     py::dict result;
