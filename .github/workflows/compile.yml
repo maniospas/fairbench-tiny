@@ -2,6 +2,9 @@ name: Build and Release CLI
 
 on: [push]
 
+permissions:
+  contents: write  # Required to create releases and upload assets
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
