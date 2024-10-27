@@ -59,6 +59,32 @@ namespace fb {
     const string RED_TEXT = "\033[1;31m";
     const string RESET_TEXT = "\033[0m";
 
+    Report access(const Report &report, const string &key) {
+        Report ret;
+        auto topLevelIt = report.find(key);
+        if(topLevelIt != report.end()) 
+            ret[key] = topLevelIt->second;
+        else {
+            ret[key] = Results();
+            for (const auto& [topKey, innerMap] : report) {
+                auto secondLevelIt = innerMap.find(key);
+                if(secondLevelIt==innerMap.end())
+                    throw invalid_argument("Report entries were not found for "+key);
+                ret[key][topKey] = secondLevelIt->second;
+            }
+        }
+        
+        return std::move(ret);
+    }
+
+    Report transpose(const Report &report) {
+        Report transposed;
+        for (const auto& [topKey, innerMap] : report) 
+            for (const auto& [innerKey, value] : innerMap) 
+                transposed[innerKey][topKey] = value;
+        return std::move(transposed);
+    }
+
     void print(const Report &results, int spacing = 15) {
         double maxValue = -1.0;
 

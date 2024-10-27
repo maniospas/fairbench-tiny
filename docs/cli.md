@@ -22,7 +22,7 @@ and running it with no arguments:
 
 ## Fairness report
 
-Compute a fairness report for a `csv` dataset like below.
+Compute a fairness report for a `csv` dataset and show it like below. 
 When nothing else is specified, the dataset is by default 
 considered to contain numeric `label` and `predict` 
 columns, and only sensitive attributes in the rest of
@@ -34,11 +34,13 @@ of certain types.
 
 ```bash
 > .\fbt report examples\test.csv
+--------------------------------------------------------------------------
 Report on 3 sensitive attributes: women,men,nonbin
                max            maxdiff        differential   gini
 error          1.000          0.667          0.667          0.242
 fpr            1.000          1.000          1.000          0.444
 fnr            1.000          1.000          1.000          0.333
+--------------------------------------------------------------------------
 ```
 
 You may optionally stipulate analysed column names like below.
@@ -46,9 +48,29 @@ Notice the difference in assessment when focusing only on certain columns.
 
 ```bash
 > .\fbt report examples\test.csv --label label --predict predict --sensitive men,women
+--------------------------------------------------------------------------
 Report on 2 sensitive attributes: women,men
                max            maxdiff        differential   gini
 error          1.000          0.667          0.667          0.250
 fpr            1.000          0.500          0.500          0.167
 fnr            1.000          1.000          1.000          0.500
+--------------------------------------------------------------------------
+```
+
+You may further specify a threshold over which biases
+are considered prohibitive. This threshold affects the 
+values considered as problematic, and triggers and exit 
+code of 1 if they are encountered.
+
+
+## Command line interface
+
+A command line interface enables interactive report exploration.
+This is similar to some simplifications. The interface keeps asking
+for exploratory operations until `exit` is provided. It does not
+terminate for any other reason (for example, set thresholds
+only alter the highlighting).
+
+```bash
+> .\fbt cli examples\test.csv
 ```

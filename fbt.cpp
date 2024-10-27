@@ -28,6 +28,8 @@
 using namespace std;
 using namespace fb;
 
+#define SEPARATOR "--------------------------------------------------------------------------\n"
+
 vector<string> split(const string& s, char delimiter) {
     vector<string> tokens;
     string token;
@@ -63,7 +65,7 @@ Arguments parse_arguments(int argc, char* argv[]) {
 
     if (argc < 3) { // At least program name, task, and filename
         cerr << "Usage: " << argv[0] << " <task> <csv_file> [options]" << endl;
-        cerr << "Available tasks: report" << endl;
+        cerr << "Available tasks: report, cli" << endl;
         cerr << "Options:" << endl;
         cerr << "  --predict <predict_column_name>      Column name for predict (default: 'predict')" << endl;
         cerr << "  --label <label_column_name>          Column name for label (default: 'label')" << endl;
@@ -82,9 +84,9 @@ Arguments parse_arguments(int argc, char* argv[]) {
     }
 
     // Currently, only 'report' is supported
-    if (args.task != "report") {
+    if (args.task != "report" && args.task != "cli") {
         cerr << "Unknown task: " << args.task << endl;
-        cerr << "Available tasks: report" << endl;
+        cerr << "Available tasks: report, cli" << endl;
         exit(1);
     }
 
@@ -260,10 +262,114 @@ Data read_csv(const Arguments& args) {
     return data;
 }
 
+namespace Terminal {
+    #ifdef _WIN32
+    #include <windows.h>
+
+    // Function to enable virtual terminal processing and set UTF-8 encoding
+    void enableVirtualTerminalProcessing() {
+        // Enable Virtual Terminal Processing on Windows
+        HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+        if (hOut == INVALID_HANDLE_VALUE) {
+            return;
+        }
+
+        DWORD dwMode = 0;
+        if (!GetConsoleMode(hOut, &dwMode)) {
+            return;
+        }
+
+        dwMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        if (!SetConsoleMode(hOut, dwMode)) {
+            return;
+        }
+
+        // Set console output to UTF-8
+        SetConsoleOutputCP(CP_UTF8);
+    }
+    #else
+    void enableVirtualTerminalProcessing(){}
+    #endif
+}
+
+
+void start_cli(const Report &report) {
+    cout << "\033[2J";
+    cout << "Available commands for the exploration of the report:\n";
+    cout << "  exit       : Exit the command line interface\n";
+    cout << "  reset      : Go back to the full report\n";
+    cout << "  transpose  : Transpose the current view\n";
+    cout << "  view <name>: Focus on a row or column given its name\n";
+    cout << SEPARATOR;
+    print(report);
+    cout << SEPARATOR;
+}
+
+void cli(const Report &_report) {
+    Report report = _report;
+    start_cli(report);
+
+    string input;
+    while(true) {
+        cout << "> ";
+        getline(cin, input, '\n');
+        auto command = split(input, ' ');
+        try {
+            if(command.size()==1 && command[0]=="exit")
+                return;
+            if(command.size()==2 && command[0]=="view") {
+                report = access(report, command[1]);
+                start_cli(report);
+                continue;
+            }
+            if(command.size()==1 && command[0]=="transpose") {
+                report = transpose(report);
+                start_cli(report);
+                continue;
+            }
+            if(command.size()==1 && command[0]=="reset") {
+                report = _report;
+                start_cli(report);
+                continue;
+            }
+        }
+        catch (const invalid_argument &e) {
+            cerr << RED_TEXT << e.what() << endl << RESET_TEXT;
+            continue;
+        }
+        cout << RED_TEXT << "Unknown command or format\n" << RESET_TEXT;
+    }
+}
+
 int main(int argc, char* argv[]) {
+    Terminal::enableVirtualTerminalProcessing();
     Arguments args = parse_arguments(argc, argv);
 
-    if (args.task == "report") {
+    if(args.task == "report") {
+        Data data = read_csv(args);
+        try {
+            bool printComma = false;
+            cout << "Report on " << data.sensitive.size() << " sensitive attributes: ";
+            for(const auto& attr : data.sensitive) {
+                if(printComma)
+                    cout << ",";
+                printComma = true;
+                cout << attr.first;
+            }
+            cout << "\n";
+            cout << SEPARATOR;
+            Report report = assessment(data, registry.metrics, registry.reductions);
+            print(report);
+            cout << SEPARATOR;
+        }
+        catch (const invalid_argument &e) {
+            cerr << e.what() << endl;
+            return 1;
+        }
+        return 0;
+    }
+
+    if(args.task == "cli") {
         Data data = read_csv(args);
         try {
             bool printComma = false;
@@ -276,7 +382,7 @@ int main(int argc, char* argv[]) {
             }
             cout << "\n";
             Report report = assessment(data, registry.metrics, registry.reductions);
-            print(report);
+            cli(report);
         }
         catch (const invalid_argument &e) {
             cerr << e.what() << endl;
