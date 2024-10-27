@@ -13,7 +13,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set up dependencies
+      - name: Set up dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: sudo apt-get update && sudo apt-get install -y build-essential
 
@@ -21,10 +21,14 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Build
-        run: |
-          g++ fbt.cpp -o fbt || cl fbt.cpp /Fe:fbt.exe
+      - name: Build on Ubuntu
+        if: matrix.os == 'ubuntu-latest'
+        run: g++ fbt.cpp -O2 -o fbt -std=c++20
         shell: bash
+
+      - name: Build on Windows
+        if: matrix.os == 'windows-latest'
+        run: cl fbt.cpp /Fe:fbt.exe
 
       - name: Archive binaries
         run: |
@@ -34,6 +38,7 @@ jobs:
           else
             mv fbt.exe release/fbt.exe
           fi
+        shell: bash
 
       - name: Upload artifact
         uses: actions/upload-artifact@v3
@@ -62,6 +67,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Linux asset
+        if: steps.download_artifacts.outputs.success && matrix.os == 'ubuntu-latest'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
@@ -70,6 +76,7 @@ jobs:
           asset_content_type: application/octet-stream
 
       - name: Upload Windows asset
+        if: steps.download_artifacts.outputs.success && matrix.os == 'windows-latest'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
