@@ -1,9 +1,6 @@
 name: Build and Release CLI
 
-on:
-  push:
-    tags:
-      - "v0.*"
+on: [push]
 
 jobs:
   build:
