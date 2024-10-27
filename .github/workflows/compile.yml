@@ -47,10 +47,6 @@ jobs:
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v3
-        with:
-          name: ubuntu-latest-fbt
-        with:
-          name: windows-latest-fbt
 
       - name: Create Release
         id: create_release
