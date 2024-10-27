@@ -31,7 +31,10 @@ namespace metric {
                 differences += filter[i];
             total += filter[i];
         }
-        return total == 0 ? 0 : differences / total;
+        return Explainable(
+            total == 0 ? 0 : differences / total, 
+            str(differences, "errors, ") + str(total, "samples")
+        );
     )
 
     // False Positive Rate
@@ -46,7 +49,10 @@ namespace metric {
                 negatives += filter[i];
             }
         }
-        return negatives == 0 ? 0 : falsePositives / negatives;
+        return Explainable(
+            negatives == 0 ? 0 : falsePositives / negatives, 
+            str(falsePositives, "false positives, ") + str(negatives, "negatives")
+        );
     )
 
     // False Negative Rate
@@ -61,7 +67,10 @@ namespace metric {
                 positives += filter[i];
             }
         }
-        return positives == 0 ? 0 : falseNegatives / positives;
+        return Explainable(
+            positives == 0 ? 0 : falseNegatives / positives, 
+            str(falseNegatives, "false negatives, ") + str(positives, "positives")
+        );
     )
 
 }} // fb::metric

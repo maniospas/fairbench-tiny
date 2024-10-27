@@ -17,6 +17,8 @@
 #ifndef FB_REDUCE_H
 #define FB_REDUCE_H
 #include "types.h"
+#include <string>
+#include <unordered_map>
 
 namespace fb {
 namespace reduce {
@@ -24,23 +26,27 @@ namespace reduce {
     // Reduction function to find the maximum metric across sensitive groups
     REDUCTION(max,
         double maxMetric = 0.0;
+        Dict desc;
         for (const auto &entry : data.sensitive) {
             const string &key = entry.first;
             const Vec &filter = entry.second;
-            double result = m(data.predict, data.label, filter);
-            if (result > maxMetric) 
-                maxMetric = result;
+            Explainable result = m(data.predict, data.label, filter);
+            if (result.get() > maxMetric) 
+                maxMetric = result.get();
+            desc[key] = result;
         }
-        return maxMetric;
+        return Explainable(maxMetric, desc);
     )
 
     // Reduction function to find the maximum difference between metric results across sensitive groups
     REDUCTION(maxdiff,
         Vec results;
+        Dict desc;
         for (const auto &entry : data.sensitive) {
             const Vec &filter = entry.second;
-            double result = m(data.predict, data.label, filter);
-            results.push_back(result);
+            Explainable result = m(data.predict, data.label, filter);
+            results.push_back(result.get());
+            desc[entry.first] = result;
         }
         double maxDiff = 0.0;
         int n = results.size();
@@ -51,17 +57,19 @@ namespace reduce {
                     maxDiff = diff;
             }
         }
-        return maxDiff;
+        return Explainable(maxDiff, desc);
     )
 
 
     // Reduction function to find the maximum difference between metric results across sensitive groups
     REDUCTION(differential,
         Vec results;
+        Dict desc;
         for (const auto &entry : data.sensitive) {
             const Vec &filter = entry.second;
-            double result = m(data.predict, data.label, filter);
-            results.push_back(result);
+            Explainable result = m(data.predict, data.label, filter);
+            results.push_back(result.get());
+            desc[entry.first] = result;
         }
         double minRatio = 1.0;
         for (size_t i = 0; i < results.size(); ++i) {
@@ -73,16 +81,18 @@ namespace reduce {
                     minRatio = ratio;
             }
         }
-        return 1-minRatio;
+        return Explainable(1-minRatio, desc);
     )
 
     // Reduction function to compute the Gini coefficient across metric results for each sensitive group
     REDUCTION(gini,
         Vec results;
+        Dict desc;
         for (const auto &entry : data.sensitive) {
             const Vec &filter = entry.second;
-            double result = m(data.predict, data.label, filter);
-            results.push_back(result);
+            Explainable result = m(data.predict, data.label, filter);
+            results.push_back(result.get());
+            desc[entry.first] = result;
         }
         double giniNumerator = 0;
         double totalSum = 0;
@@ -90,14 +100,14 @@ namespace reduce {
         for (double value : results) 
             totalSum += value;
         if (totalSum == 0) 
-            return 0;
+            return Explainable(0, desc);
         // Gini coefficient numerator: sum of absolute differences
         for (int i = 0; i < n; ++i) {
             for (int j = 0; j < n; ++j) 
                 giniNumerator += abs(results[i] - results[j]);
         }
         // Gini coefficient formula
-        return giniNumerator / (2 * n * totalSum);
+        return Explainable(giniNumerator / (2 * n * totalSum), desc);
     )
 
 

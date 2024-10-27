@@ -4,20 +4,17 @@
 # For local tests:  pip install -e .
 
 from setuptools import setup, Extension
-import pybind11
+import pybind11  # make sure that this is installed
 from pybind11.setup_helpers import Pybind11Extension, build_ext
-import sys
 
-# Define the extension module
 ext_modules = [
     Pybind11Extension(
         "fairbenchtiny",
         ["bindings.cpp"],
-        extra_compile_args=["-O2"],
+        extra_compile_args=["-O2", "-std=c++20"],
     ),
 ]
 
-# Run setup
 setup(
     name="fairbenchtiny",
     version="0.1",

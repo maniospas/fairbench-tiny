@@ -23,20 +23,23 @@
 #include <stdexcept>
 #include <string>
 #include <iomanip>
+#include <memory>
+#include <string>
+#include "explainables.h"
 using namespace std;
 
 namespace fb {
 
-    // actual data types
-    class Data;
+    struct Data;
     typedef vector<double> Vec;
     typedef unordered_map<string, Vec> Sensitive;
-    typedef double (*Metric)(const Vec&, const Vec&, const Vec&);
+    typedef Explainable (*Metric)(const Vec&, const Vec&, const Vec&);
     typedef unordered_map<string, Metric> Metrics;
-    typedef double (*Reduction)(const Data& data, Metric m);
+    typedef Explainable (*Reduction)(const Data& data, Metric m);
     typedef unordered_map<string, Reduction> Reductions;
-    typedef unordered_map<string, double> Results;
-    typedef unordered_map<string, unordered_map<string, double>> Report;
+    typedef unordered_map<string, Explainable> Results;
+    typedef unordered_map<string, unordered_map<string, Explainable>> Report;
+    typedef unordered_map<string, Explainable> Dict;
 
     struct Data {
         Vec predict;
@@ -110,6 +113,12 @@ namespace fb {
     };
     Registry registry;
 
+    string str(double value, string desc) {
+        if((int)value==value)
+            return to_string((int)value) + " " + desc;
+        return to_string(value) + " " + desc;
+    }
+
 } // namespace fb
 
 
@@ -117,17 +126,17 @@ namespace fb {
 #define STRINGIFY(s) #s
 
 #define METRIC(name, implementation) \
-    double name(const fb::Vec &predict, const fb::Vec &label, const fb::Vec &filter); \
+    Explainable name(const fb::Vec &predict, const fb::Vec &label, const fb::Vec &filter); \
     static bool _reg_metric_##name = [](){ fb::registry.metrics[STRINGIFY(name)] = name; return true; }(); \
-    double name(const fb::Vec &predict, const fb::Vec &label, const fb::Vec &filter) { \
+    Explainable name(const fb::Vec &predict, const fb::Vec &label, const fb::Vec &filter) { \
     checkSize(predict, filter);\
     checkSize(label, filter);\
     implementation}
 
 #define REDUCTION(name, implementation) \
-    double name(const fb::Data& data, fb::Metric m); \
+    Explainable name(const fb::Data& data, fb::Metric m); \
     static bool _reg_reduce_##name = [](){ fb::registry.reductions[STRINGIFY(name)] = name; return true; }(); \
-    double name(const fb::Data& data, fb::Metric m) { \
+    Explainable name(const fb::Data& data, fb::Metric m) { \
     implementation}
 
 #endif // FB_TYPES_H

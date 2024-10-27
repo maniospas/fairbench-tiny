@@ -32,8 +32,8 @@ namespace fb {
                 Reduction reductionFunc = reductionEntry.second;
 
                 // Compute the result of the reduction with the metric
-                double result = reductionFunc(data, metricFunc);
-                report[reductionName][metricName] = result;
+                Explainable result = reductionFunc(data, metricFunc);
+                report[reductionName][metricName] = std::move(result);
             }
         }
         return report;
@@ -85,14 +85,24 @@ namespace fb {
         return std::move(transposed);
     }
 
+    void details(const Report &results, int spacing = 20) {
+        for (const auto &metric : results.begin()->second) 
+            for (const auto &reduction : results) {
+                Explainable value = reduction.second.at(metric.first);
+                cout << fixed << setprecision(3);
+                cout << setw(spacing) << (metric.first+" "+reduction.first) << " " << value.get() << "   " << value.str() << "\n";
+            }
+    }
+
     void print(const Report &results, int spacing = 15) {
         double maxValue = -1.0;
 
         // Find the maximum value in the report
         for (const auto &reduction : results) {
             for (const auto &metric : reduction.second) {
-                if (metric.second > maxValue) {
-                    maxValue = metric.second;
+                double value = metric.second.get();
+                if (value > maxValue) {
+                    maxValue = value;
                 }
             }
         }
@@ -106,7 +116,7 @@ namespace fb {
             for (const auto &metric : results.begin()->second) {
                 cout << setw(spacing) << metric.first;
                 for (const auto &reduction : results) {
-                    double value = reduction.second.at(metric.first);
+                    double value = reduction.second.at(metric.first).get();
                     cout << fixed << setprecision(3);  // Set formatting to .3f
 
                     // Print the value in red if it's the maximum

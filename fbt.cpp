@@ -14,7 +14,7 @@
     limitations under the License.
 */
 
-// compile: g++ fbt.cpp -O2 -o fbt
+// compile: g++ fbt.cpp -O2 -o fbt -std=c++20
 
 #include <iostream>
 #include <fstream>
@@ -293,15 +293,19 @@ namespace Terminal {
 }
 
 
-void start_cli(const Report &report) {
+void start_cli(const Report &report, bool verbose=false) {
     cout << "\033[2J";
     cout << "Available commands for the exploration of the report:\n";
-    cout << "  exit       : Exit the command line interface\n";
-    cout << "  reset      : Go back to the full report\n";
-    cout << "  transpose  : Transpose the current view\n";
-    cout << "  view <name>: Focus on a row or column given its name\n";
+    cout << "  exit             Exit the command line interface\n";
+    cout << "  reset            Go back to the full report\n";
+    cout << "  transpose        Transpose the current view\n";
+    cout << "  view <name>      Focus on a row or column given its name\n";
+    cout << "  details          Provide verbose details about each value\n";
     cout << SEPARATOR;
-    print(report);
+    if(verbose)
+        details(report);
+    else
+        print(report);
     cout << SEPARATOR;
 }
 
@@ -332,6 +336,10 @@ void cli(const Report &_report) {
                 start_cli(report);
                 continue;
             }
+            if(command.size()==1 && command[0]=="details") {
+                start_cli(report, true);
+                continue;
+            }
         }
         catch (const invalid_argument &e) {
             cerr << RED_TEXT << e.what() << endl << RESET_TEXT;
@@ -346,19 +354,22 @@ int main(int argc, char* argv[]) {
     Arguments args = parse_arguments(argc, argv);
 
     if(args.task == "report") {
-        Data data = read_csv(args);
         try {
-            bool printComma = false;
-            cout << "Report on " << data.sensitive.size() << " sensitive attributes: ";
-            for(const auto& attr : data.sensitive) {
-                if(printComma)
-                    cout << ",";
-                printComma = true;
-                cout << attr.first;
+            Report report;
+            { // scope this to get the data cleared by RAI
+                Data data = read_csv(args);
+                bool printComma = false;
+                cout << "Report on " << data.sensitive.size() << " sensitive attributes: ";
+                for(const auto& attr : data.sensitive) {
+                    if(printComma)
+                        cout << ",";
+                    printComma = true;
+                    cout << attr.first;
+                }
+                cout << "\n";
+                cout << SEPARATOR;
+                report = assessment(data, registry.metrics, registry.reductions);
             }
-            cout << "\n";
-            cout << SEPARATOR;
-            Report report = assessment(data, registry.metrics, registry.reductions);
             print(report);
             cout << SEPARATOR;
         }
