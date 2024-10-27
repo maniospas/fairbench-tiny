@@ -27,25 +27,7 @@ namespace fb {
         unique_ptr<Details> copy() const;
         virtual string str() const = 0;
     };
-
-    // StringDetails class
-    class StringDetails : public Details {
-        string description;
-        Details* copy_impl() const override;
-    public:
-        StringDetails(const string& description);
-        string str() const override;
-    };
-
-    // DictDetails class
-    class DictDetails : public Details {
-        unordered_map<string, Explainable> values;
-        Details* copy_impl() const override;
-    public:
-        DictDetails(const unordered_map<string, Explainable>& values);
-        string str() const override;
-    };
-
+    
     // Explainable class
     class Explainable {
         double value;
@@ -65,6 +47,24 @@ namespace fb {
 
         double get() const;
         virtual string str() const;
+    };
+
+    // StringDetails class
+    class StringDetails : public Details {
+        string description;
+        Details* copy_impl() const override;
+    public:
+        StringDetails(const string& description);
+        string str() const override;
+    };
+
+    // DictDetails class
+    class DictDetails : public Details {
+        unordered_map<string, Explainable> values;
+        Details* copy_impl() const override;
+    public:
+        DictDetails(const unordered_map<string, Explainable>& values);
+        string str() const override;
     };
 
     // Implementations
