@@ -1,7 +1,8 @@
 # fairbench-tiny
 
 A performant C++ implementation of several fairness assessment functionalities that are 
-originally oferred by `fairbench` . These are made type-safe and are available in the following forms:
+originally oferred by `fairbench` . These are made type-safe and are exposed through the 
+following interfaceas:
 
 - C++ library
 - Python library

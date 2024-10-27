@@ -1,4 +1,3 @@
-import numpy as np
 import fairbenchtiny as fbt
 
 predictions = [1, 0, 1, 1]
@@ -12,4 +11,4 @@ result = fbt.report(predictions, labels, sensitive)
 for reduction, values in result.items():
     print(reduction)
     for metric, value in values.items():
-        print(" ", metric, value["value"])#, value["explain"])
+        print(" ", metric, value["value"], value["explain"])
