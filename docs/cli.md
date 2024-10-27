@@ -68,9 +68,23 @@ code of 1 if they are encountered.
 A command line interface enables interactive report exploration.
 This is similar to some simplifications. The interface keeps asking
 for exploratory operations until `exit` is provided. It does not
-terminate for any other reason (for example, set thresholds
-only alter the highlighting).
+terminate for any other reason (for example, thresholds
+only alter which report entries are highlighted).
 
 ```bash
 > .\fbt cli examples\test.csv
+
+Available commands for the exploration of the report:
+  exit       : Exit the command line interface
+  reset      : Go back to the full report
+  transpose  : Transpose the current view
+  view <name>: Focus on a row or column given its name
+--------------------------------------------------------------------------
+               fnr            fpr            error
+gini           0.333          0.444          0.242
+differential   1.000          1.000          0.667
+maxdiff        1.000          1.000          0.667
+max            1.000          1.000          1.000
+--------------------------------------------------------------------------
+> 
 ```
