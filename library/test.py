@@ -9,4 +9,7 @@ sensitive = {
 }
 
 result = fbt.report(predictions, labels, sensitive)
-print(result)
+for reduction, values in result.items():
+    print(reduction)
+    for metric, value in values.items():
+        print(" ", metric, value["value"])#, value["explain"])

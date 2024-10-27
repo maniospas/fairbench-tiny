@@ -46,17 +46,21 @@ py::dict report(py::array_t<double> predict,
         py::array_t<double> array = item.second.cast<py::array_t<double>>();
         data.sensitive[key] = std::vector<double>(array.data(), array.data() + array.size());
     }
-    data.validate();
 
     // generate the report
     py::dict result;
     try {
+        data.validate();
         Report report = assessment(data, registry.metrics, registry.reductions);
         //print(report);
         for (const auto& outer_pair : report) {
             py::dict inner_dict;
-            for (const auto& inner_pair : outer_pair.second) 
-                inner_dict[inner_pair.first.c_str()] = inner_pair.second;
+            for (const auto& inner_pair : outer_pair.second) {
+                py::dict explainable_dict;
+                explainable_dict["value"] = inner_pair.second.get();
+                explainable_dict["explain"] = inner_pair.second.str();
+                inner_dict[inner_pair.first.c_str()] = explainable_dict;
+            }
             result[outer_pair.first.c_str()] = inner_dict;
         }
     }
