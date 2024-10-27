@@ -58,8 +58,8 @@ fnr            1.000          1.000          1.000          0.500
 ```
 
 You may further specify a threshold over which biases
-are considered prohibitive. This threshold affects the 
-values considered as problematic, and triggers and exit 
+are considered prohibitive. This affects the 
+values considered as problematic, and triggers an exit 
 code of 1 if they are encountered.
 
 
@@ -67,18 +67,19 @@ code of 1 if they are encountered.
 
 A command line interface enables interactive report exploration.
 This is similar to some simplifications. The interface keeps asking
-for exploratory operations until `exit` is provided. It does not
-terminate for any other reason (for example, thresholds
-only alter which report entries are highlighted).
+for exploratory operations until `exit` is given. Once initiated
+(this includes passing threshold checks) it does not terminate for
+any other reason.
 
 ```bash
 > .\fbt cli examples\test.csv
 
 Available commands for the exploration of the report:
-  exit       : Exit the command line interface
-  reset      : Go back to the full report
-  transpose  : Transpose the current view
-  view <name>: Focus on a row or column given its name
+  exit             Exit the command line interface
+  reset            Go back to the full report
+  transpose        Transpose the current view
+  view <name>      Focus on a row or column given its name
+  details          Provide verbose details about each value
 --------------------------------------------------------------------------
                fnr            fpr            error
 gini           0.333          0.444          0.242

@@ -57,20 +57,45 @@ struct Arguments {
     string predict_column = "predict";
     string label_column = "label";
     vector<string> sensitive_columns;
+    double threshold = 1;
     char delimiter = '\0'; // Default: no delimiter specified
 };
+
+double stringToDouble(const std::string& str) {
+    try {
+        // Attempt to convert the string to a double
+        size_t pos;
+        double value = std::stod(str, &pos);
+        if (pos != str.length()) {
+            throw std::invalid_argument("String contains non-numeric characters");
+        }
+        return value;
+    } catch (const std::invalid_argument& e) {
+        throw std::runtime_error("Invalid argument: unable to convert string to double");
+    } catch (const std::out_of_range& e) {
+        throw std::runtime_error("Out of range: number is too large to fit in a double");
+    }
+}
+
 
 Arguments parse_arguments(int argc, char* argv[]) {
     Arguments args;
 
     if (argc < 3) { // At least program name, task, and filename
         cerr << "Usage: " << argv[0] << " <task> <csv_file> [options]" << endl;
-        cerr << "Available tasks: report, cli" << endl;
+        cerr << "Available tasks:" << endl;
+        cerr << "  report     Print a consise fairness report" << endl;
+        cerr << "  details    Print detailed fairness report that includes intermediate values" << endl;
+        cerr << "  cli        Command line exploration of a fairness report" << endl;
+        cerr << "  silent     Compute a report without printing (pair with --threshold for testing)" << endl;
         cerr << "Options:" << endl;
         cerr << "  --predict <predict_column_name>      Column name for predict (default: 'predict')" << endl;
         cerr << "  --label <label_column_name>          Column name for label (default: 'label')" << endl;
         cerr << "  --sensitive <col1,col2,...>          Comma-separated list of sensitive columns (default: all other columns)" << endl;
         cerr << "  --delimiter <delimiter>              Delimiter character (one character only)" << endl;
+        cerr << "  --threshold <threshold>              Threshold of when to consider deviations as biased. If it is exceeded"<<endl;
+        cerr << "                                       for any report value, exit code 1 is generated, for example for CI.,"<<endl;
+        cerr << "                                       (Default value is 1, which never triggers this behavior.)" << endl;
         exit(1);
     }
 
@@ -119,6 +144,13 @@ Arguments parse_arguments(int argc, char* argv[]) {
             }
             string sensitive_arg = argv[++i];
             args.sensitive_columns = split(sensitive_arg, ',');
+        } else if (arg == "--threshold") {
+            if (i + 1 >= argc) {
+                cerr << "--threshold option requires an argument" << endl;
+                exit(1);
+            }
+            string threshold_arg = argv[++i];
+            args.threshold = stringToDouble(threshold_arg);
         } else if (arg == "--delimiter") {
             if (i + 1 >= argc) {
                 cerr << "--delimiter option requires an argument" << endl;
@@ -353,7 +385,7 @@ int main(int argc, char* argv[]) {
     Terminal::enableVirtualTerminalProcessing();
     Arguments args = parse_arguments(argc, argv);
 
-    if(args.task == "report") {
+    if(args.task == "report" || args.task == "details" || args.task == "silent") {
         try {
             Report report;
             { // scope this to get the data cleared by RAI
@@ -370,8 +402,24 @@ int main(int argc, char* argv[]) {
                 cout << SEPARATOR;
                 report = assessment(data, registry.metrics, registry.reductions);
             }
-            print(report);
+            if(args.task == "details")
+                details(report);
+            else if(args.task == "report")
+                print(report);
             cout << SEPARATOR;
+            // check for thresholds
+            std::ostringstream output;
+            for (const auto& entry : report) 
+                for (const auto& value : entry.second) 
+                    if (value.second.get() > args.threshold) {
+                        output << "\n" << std::fixed << std::setprecision(3);
+                        output << left << std::setw(20) << (entry.first + " " + value.first) << " " << RED_TEXT << value.second.get() << RESET_TEXT;
+                    }
+            string desc = output.str();
+            if(desc.size()) {
+                std::cout << "The following values exceeded the maximum --threshold "+to_string(args.threshold)+":" << desc;
+                return 1;
+            }
         }
         catch (const invalid_argument &e) {
             cerr << e.what() << endl;
@@ -383,16 +431,25 @@ int main(int argc, char* argv[]) {
     if(args.task == "cli") {
         Data data = read_csv(args);
         try {
-            bool printComma = false;
-            cout << "Report on " << data.sensitive.size() << " sensitive attributes: ";
-            for(const auto& attr : data.sensitive) {
-                if(printComma)
-                    cout << ",";
-                printComma = true;
-                cout << attr.first;
+            Report report;
+            { // scope this to get the data cleared by RAI
+                Data data = read_csv(args);
+                report = assessment(data, registry.metrics, registry.reductions);
+                // check for thresholds
+                std::ostringstream output;
+                for (const auto& entry : report) 
+                    for (const auto& value : entry.second) 
+                        if (value.second.get() > args.threshold) {
+                            output << "\n" << std::fixed << std::setprecision(3);
+                            output << left << std::setw(20) << (entry.first + " " + value.first) 
+                                << " " << RED_TEXT << value.second.get() << RESET_TEXT;
+                        }
+                string desc = output.str();
+                if(desc.size()) {
+                    std::cout << "The following values exceeded the maximum bias --threshold "+to_string(args.threshold)+":" << desc;
+                    return 1;
+                }
             }
-            cout << "\n";
-            Report report = assessment(data, registry.metrics, registry.reductions);
             cli(report);
         }
         catch (const invalid_argument &e) {
