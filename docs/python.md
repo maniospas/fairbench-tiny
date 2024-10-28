@@ -1,4 +1,4 @@
-# Python Interface
+# Python interface
 
 *There is no pypi library yet. Future availability will be via: pip install fairbench-tiny *
 

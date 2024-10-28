@@ -1,4 +1,4 @@
-# C++ Interface
+# C++ interface
 
 Here is a quickstart with using this package in C++.
 The main data structure that needs to be passed around
