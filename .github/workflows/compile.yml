@@ -3,7 +3,7 @@ name: Build and Release CLI
 on: [push]
 
 permissions:
-  contents: write  # Required to create releases and upload assets
+  contents: write  # Required for creating releases and uploading assets
 
 jobs:
   build:
@@ -31,7 +31,7 @@ jobs:
 
       - name: Build on Windows
         if: matrix.os == 'windows-latest'
-        run: cl fbt.cpp -O2 /std:c++20 /EHsc /Fe:fbt.exe
+        run: cl fbt.cpp /std:c++17 /EHsc /Fe:fbt.exe
 
       - name: Archive binaries
         run: |
@@ -55,6 +55,13 @@ jobs:
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v3
+        with:
+          name: ubuntu-latest-fbt
+          path: release/linux
+      - uses: actions/download-artifact@v3
+        with:
+          name: windows-latest-fbt
+          path: release/windows
 
       - name: Create Release
         id: create_release
@@ -70,19 +77,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Linux asset
-        if: steps.download_artifacts.outputs.success && matrix.os == 'ubuntu-latest'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release/fbt
+          asset_path: release/linux/fbt
           asset_name: fbt
           asset_content_type: application/octet-stream
 
       - name: Upload Windows asset
-        if: steps.download_artifacts.outputs.success && matrix.os == 'windows-latest'
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: release/fbt.exe
+          asset_path: release/windows/fbt.exe
           asset_name: fbt.exe
           asset_content_type: application/octet-stream
