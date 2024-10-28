@@ -4,8 +4,9 @@
 
 The fairbench-tiny command line tool is an executable that you can
 use to efficiently analyse (large) csv files given that the analysed
-numeric data fit in memory. You can find a version from the platform
-from the main repository page, or build it yourself by cloning this
+numeric data fit in memory. You can find Windows and Linux binaries
+from the project's latest [release](https://github.com/maniospas/fairbench-tiny/releases/latest). 
+Or you can build it yourself by cloning this
 repository and running the following (there are no other dependencies).
 
 ```bash
