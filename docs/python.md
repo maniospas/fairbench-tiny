@@ -1,5 +1,7 @@
 # Python Interface
 
+*There is no pypi library yet. Future availability will be via: pip install fairbench-tiny *
+
 After installing the fairbenchtiny library in your (virtual) environment,
 you can import it from its name. This grants access to a report generation
 method that takes as inputs numpy arrays of doubles or data types that pybind can convert
