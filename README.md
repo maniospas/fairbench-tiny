@@ -2,7 +2,7 @@
 
 A performant C++ implementation of several fairness assessment functionalities that are 
 originally offerred by the [fairbench](https://github.com/mever-team/FairBench) framework.
-These are made type-safe and are exposed through the following equivalent interfaceas:
+These are made type-safe and exposed through the following equivalent interfaces:
 
 - C++ library
 - Python library
