@@ -72,3 +72,5 @@ The interface keeps asking for exploratory operations.
 After being initiated the first time
 (and after passing threshold checks) the exploration process only
 terminates if `exit` is given. Here is an example: 
+
+![report manipulation](report.gif)
