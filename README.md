@@ -18,7 +18,8 @@ These are made type-safe and are exposed through the following equivalent interf
 Generate reports like the one below and get details on which computations
 took place to determine offending values.
 
-```plaintext
+```bash
+> .\fbt report examples\test.csv
 --------------------------------------------------------------------------
 Report on 3 sensitive attributes: women,men,nonbin
                max            maxdiff        differential   gini
