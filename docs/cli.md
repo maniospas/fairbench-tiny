@@ -24,14 +24,15 @@ and running it with no arguments:
 ## Fairness report
 
 Compute a fairness report for a `csv` dataset and show it like below. 
-When nothing else is specified, the dataset is by default 
+When nothing else is specified, the dataset is 
 considered to contain numeric `label` and `predict` 
 columns, and only sensitive attributes in the rest of
-the columns. The generated report contains various 
+the columns. The generated report computes various 
 performance assessment strategies (rows) and methods
 to reduce their computation across all attribute values
-(columns). Larger assessments indicate greater biases
-of certain types.
+(columns). Larger assessments always indicate greater biases.
+Furthermore, the worst value per reduction strategy is
+colored red.
 
 ```bash
 > .\fbt report examples\test.csv
@@ -44,7 +45,7 @@ fnr            1.000          1.000          1.000          0.333
 --------------------------------------------------------------------------
 ```
 
-You may optionally stipulate analysed column names like below.
+You may optionally stipulate the sensitive attribute columns like below.
 Notice the difference in assessment when focusing only on certain columns.
 
 ```bash
@@ -58,19 +59,21 @@ fnr            1.000          1.000          1.000          0.500
 --------------------------------------------------------------------------
 ```
 
-You may further specify a threshold over which biases
-are considered prohibitive. This affects the 
-values considered as problematic, and triggers an exit 
-code of 1 if they are encountered.
+You may further specify a bias threshold; biases larger than this
+are considered problematic. When encountered, such values trigger an 
+exit mechanism code of 1. You can use this in continuous integration
+pipelines.
 
 
 ## Command line interface
 
 A command line interface enables interactive report exploration.
-This is similar to some simplifications. The interface keeps asking
-for exploratory operations until `exit` is given. Once initiated
-(this includes passing threshold checks) it does not terminate for
-any other reason.
+The interface keeps asking for exploratory operations. 
+After being initiated the first time
+(and after passing threshold checks) the exploration process only
+terminates if `exit` is given. Some example steps follow, where
+the first's input (last line) focuses on the `fnr` reduction, 
+and then second's input asks for details on all displayed values. 
 
 ```bash
 > .\fbt cli examples\test.csv
@@ -88,5 +91,38 @@ differential   1.000          1.000          0.667
 maxdiff        1.000          1.000          0.667
 max            1.000          1.000          1.000
 --------------------------------------------------------------------------
-> 
+> view fnr
+```
+
+```bash
+--------------------------------------------------------------------------
+               fnr            
+gini           0.333
+differential   1.000
+maxdiff        1.000
+max            1.000
+--------------------------------------------------------------------------
+> details
+```
+
+```bash
+--------------------------------------------------------------------------
+gini fnr             0.333
+  |men                0.000000 (0 false negatives, 1 positives)
+  |women              1.000000 (1 false negatives, 1 positives)
+  |nonbin             1.000000 (1 false negatives, 1 positives)
+differential fnr     1.000
+  |men                0.000000 (0 false negatives, 1 positives)
+  |women              1.000000 (1 false negatives, 1 positives)
+  |nonbin             1.000000 (1 false negatives, 1 positives)
+maxdiff fnr          1.000
+  |men                0.000000 (0 false negatives, 1 positives)
+  |women              1.000000 (1 false negatives, 1 positives)
+  |nonbin             1.000000 (1 false negatives, 1 positives)
+max fnr              1.000
+  |men                0.000000 (0 false negatives, 1 positives)
+  |women              1.000000 (1 false negatives, 1 positives)
+  |nonbin             1.000000 (1 false negatives, 1 positives)
+--------------------------------------------------------------------------
+>
 ```
