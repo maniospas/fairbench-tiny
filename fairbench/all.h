@@ -18,3 +18,4 @@
 #include "report.h"
 #include "reductions.h"
 #include "metrics.h"
+#include "intersections.h"

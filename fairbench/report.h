@@ -57,6 +57,9 @@ namespace fb {
 
     // Transposed print function to display the 2D table results
     const string RED_TEXT = "\033[1;31m";
+    const string CYAN_TEXT = "\033[1;36m";
+    const string YELLOW_TEXT = "\033[1;33m";
+    const string MAGENTA_TEXT = "\033[1;35m";
     const string RESET_TEXT = "\033[0m";
 
     Report access(const Report &report, const string &key) {
@@ -90,7 +93,7 @@ namespace fb {
             for (const auto &reduction : results) {
                 Explainable value = reduction.second.at(metric.first);
                 cout << fixed << setprecision(3);
-                cout << setw(spacing) << (metric.first+" "+reduction.first) << " " << value.get() << "   " << value.str() << "\n";
+                cout << CYAN_TEXT<< left << setw(spacing) << (metric.first+" "+reduction.first) << RESET_TEXT << " " << value.get() << "   " << value.str() << "\n";
             }
     }
 
@@ -107,14 +110,14 @@ namespace fb {
             }
         }
 
-        cout << left << setw(spacing) << " ";
+        cout << CYAN_TEXT << left << setw(spacing) << " ";
         for (const auto &reduction : results)
             cout << setw(spacing) << reduction.first;
-        cout << endl;
+        cout << RESET_TEXT << endl;
 
         if (!results.empty()) {
             for (const auto &metric : results.begin()->second) {
-                cout << setw(spacing) << metric.first;
+                cout << CYAN_TEXT << setw(spacing) << metric.first << RESET_TEXT;
                 for (const auto &reduction : results) {
                     double value = reduction.second.at(metric.first).get();
                     cout << fixed << setprecision(3);  // Set formatting to .3f

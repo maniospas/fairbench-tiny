@@ -28,7 +28,7 @@
 using namespace std;
 using namespace fb;
 
-#define SEPARATOR "--------------------------------------------------------------------------\n"
+#define SEPARATOR (fb::CYAN_TEXT+"--------------------------------------------------------------------------\n"+fb::RESET_TEXT)
 
 vector<string> split(const string& s, char delimiter) {
     vector<string> tokens;
@@ -56,6 +56,7 @@ struct Arguments {
     string filename;
     string predict_column = "predict";
     string label_column = "label";
+    bool intersect = false;
     vector<string> sensitive_columns;
     double threshold = 1;
     char delimiter = '\0'; // Default: no delimiter specified
@@ -92,6 +93,7 @@ Arguments parse_arguments(int argc, char* argv[]) {
         cerr << "  --predict <predict_column_name>      Column name for predict (default: 'predict')" << endl;
         cerr << "  --label <label_column_name>          Column name for label (default: 'label')" << endl;
         cerr << "  --sensitive <col1,col2,...>          Comma-separated list of sensitive columns (default: all other columns)" << endl;
+        cerr << "  --intersect                          Adds non-empty intersections of sensitive" << endl;
         cerr << "  --delimiter <delimiter>              Delimiter character (one character only)" << endl;
         cerr << "  --threshold <threshold>              Threshold of when to consider deviations as biased. If it is exceeded"<<endl;
         cerr << "                                       for any report value, exit code 1 is generated, for example for CI.,"<<endl;
@@ -109,9 +111,9 @@ Arguments parse_arguments(int argc, char* argv[]) {
     }
 
     // Currently, only 'report' is supported
-    if (args.task != "report" && args.task != "cli") {
+    if (args.task != "report" && args.task != "cli" && args.task != "details" && args.task != "silent") {
         cerr << "Unknown task: " << args.task << endl;
-        cerr << "Available tasks: report, cli" << endl;
+        cerr << "Available tasks: report, details, cli, silent" << endl;
         exit(1);
     }
 
@@ -125,7 +127,11 @@ Arguments parse_arguments(int argc, char* argv[]) {
     ++i;
     while (i < argc) {
         string arg = argv[i];
-        if (arg == "--predict") {
+
+        if (arg == "--intersect") {
+            args.intersect = true;
+            
+        } else if (arg == "--predict") {
             if (i + 1 >= argc) {
                 cerr << "--predict option requires an argument" << endl;
                 exit(1);
@@ -290,6 +296,8 @@ Data read_csv(const Arguments& args) {
             data.sensitive[col].push_back(value);
         }
     }
+    if(args.intersect)
+        add_intersections(data.sensitive);
 
     return data;
 }
@@ -417,7 +425,7 @@ int main(int argc, char* argv[]) {
                     }
             string desc = output.str();
             if(desc.size()) {
-                std::cout << "The following values exceeded the maximum --threshold "+to_string(args.threshold)+":" << desc;
+                std::cout << "The following values exceeded the value set by --threshold "+to_string(args.threshold)+":" << desc << "\n";
                 return 1;
             }
         }
@@ -446,7 +454,7 @@ int main(int argc, char* argv[]) {
                         }
                 string desc = output.str();
                 if(desc.size()) {
-                    std::cout << "The following values exceeded the maximum bias --threshold "+to_string(args.threshold)+":" << desc;
+                    std::cout << "The following values exceeded the maximum bias --threshold "+to_string(args.threshold)+":" << desc << "\n";
                     return 1;
                 }
             }

@@ -69,7 +69,7 @@ namespace metric {
         }
         return Explainable(
             positives == 0 ? 0 : falseNegatives / positives, 
-            str(falseNegatives, "false negatives, ") + str(positives, "positives")
+            str(falseNegatives, "false negatives, ") + str(positives, "positives") + "false positive rates\n"
         );
     )
 
