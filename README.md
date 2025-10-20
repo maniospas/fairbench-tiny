@@ -4,7 +4,7 @@ This is a high-performance C++ utility for evaluating basic fairness metrics fro
 
 It provides a lightweight alternative to the [**FairBench**](https://github.com/mever-team/FairBench) Python framework for bias and fairness assessment. This variation is ideal for environments where speed and memory efficiency are critical by streaming through a file and accumulating values without loading all data in memory.
 
-## ✨ Features
+## 🔥 Features
 
 - Fast parsing of large CSV/TSV files with bare metal code.  
 - Aggregate group-wise metrics for classification (tpr, tnr, accuracy, pr).
@@ -37,7 +37,7 @@ updates from *stdin*.
 - --numerical Indicates that the column holds numerical data (this is prioritized over the globally set --numbers).
 - --skip Ignores the column during parsing.
 
-## 🪄 Script files
+## 📝 Script files
 
 You might have complex arguments in your run that would be a shame to lose.
 In those cases, pass as the only argument a configuration *.fb* file like the ones in *examples/*. 
@@ -67,7 +67,7 @@ The outcome reports only on the columns of interest.
 </div>
 
 
-## 📘 Expected Input
+## 📘 Expected input
 
 The first line must contain column headers (group names, *label*, and *predict*). Columns may be separated by **comma `,`**, **tab `\t`**, or **semicolon `;`** — the first delimiter encountered is used. **Whitespace** or quotations are ignored everywhere.  
 
@@ -82,11 +82,9 @@ gender,region,label,predict
 0,1,0,1
 ```
 
-## Streaming interface
+## ✨ Streaming interface
 
-You can monitor an algorithm while it is running by having it flush predictions in *stdout*.
-For example, in Linux you can pipe the outcome like below. The example use a Python script 
-to demonstrate an algorithm outputting results.
+You can monitor running algorithms by flushing predictions to the executable's *stdin*. For example, in Linux you can pipe the *stdout* of a Python process like below. The example uses a Python script that emulates an algorithm outputting results.
 
 ```python
 # examples/streamer.py
@@ -111,5 +109,5 @@ while True:
 ```
 
 ```bash
-python3 examples/streamer.py | ./fbt --stream 0.1
+python3 examples/streamer.py | ./fbt --stream 1
 ```
