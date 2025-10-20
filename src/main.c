@@ -29,15 +29,27 @@ static inline char *xstrdup(const char *s) {
     }
     memcpy(p, s, n);
     return p;
-}
-
-static inline size_t minimum(size_t a, size_t b) {
-    return (a < b) ? a : b;
-}
+} 
 
 static char is_delimiter(char c) {
     return c == ',' || c == '\t' || c == ';';
 }
+
+
+#define CONFIG_STATUS_AUTO 0       // follows global defaults
+#define CONFIG_STATUS_SKIP 1       // skips the column
+#define CONFIG_STATUS_NUMERIC 2    // custom number of categories (uses Config.categories)
+#define CONFIG_STATUS_BINARY 3     // custom number of categories (uses Config.binary)
+
+struct Config {
+    char* name;
+    int status;
+    double threshold;
+    union {
+        int categories;
+        char* binary;
+    };
+};
 
 struct Stats {
     unsigned long tp;
@@ -48,11 +60,12 @@ struct Stats {
 };
 
 struct Column {
-    size_t num_dimensions;
     MHash map;
+    size_t num_dimensions;
+    MHASH_INDEX_UINT active_dim;
     char** dimension_names;
     struct Stats *stats;
-    MHASH_INDEX_UINT active_dim;
+    struct Config *config;
 };
 
 static const char *color_for(double v, double threshold) {
@@ -75,6 +88,9 @@ int main(int argc, char *argv[]) {
     double threshold = 0.0;
     size_t min_samples = 0;
     MHASH_INDEX_UINT categorical_dimensions = 10;
+
+    struct Config configs[MAX_COLS];
+    int current_config = -1;
 
     // Parse CLI args
     int in_comments = 0;
@@ -118,7 +134,6 @@ int main(int argc, char *argv[]) {
             // strip inline comments
             char *hash = strchr(line, '#');
             if (hash) *hash = '\0';
-
             // trim leading/trailing spaces
             char *start = line;
             while (isspace(*start)) start++;
@@ -126,15 +141,12 @@ int main(int argc, char *argv[]) {
             while (end > start && isspace(*(end - 1))) *--end = '\0';
             if (*start == '\0')
                 continue;
-
-            // parse the line argument by argument
             char *arg = strtok(start, " \t\r\n");
             while (arg) {
                 if (arg[0] == 0) {
                     arg = strtok(NULL, " \t\r\n");
                     continue;
                 }
-
                 if (in_comments_fb) {
                     if (arg[0] == '-')
                         in_comments_fb = 0;
@@ -143,25 +155,102 @@ int main(int argc, char *argv[]) {
                         continue;
                     }
                 }
-
+                // start of comment
                 if (arg[0] == '#') {
                     in_comments_fb = 1;
-                } else if (strcmp(arg, "--label") == 0) {
+                    arg = strtok(NULL, " \t\r\n");
+                    continue;
+                }
+
+                // --- handle @column sections ---
+                if (arg[0] == '@') {
+                    current_config++;
+                    if (current_config >= MAX_COLS) {
+                        fprintf(stderr, "Error: too many column configs (> %d)\n", MAX_COLS);
+                        return 1;
+                    }
+                    memset(&configs[current_config], 0, sizeof(struct Config));
+                    configs[current_config].name = xstrdup(arg + 1);
+                    configs[current_config].status = CONFIG_STATUS_AUTO;
+                    configs[current_config].threshold = threshold;
+                    arg = strtok(NULL, " \t\r\n");
+                    continue;
+                }
+                if(!strcmp(arg, "--label")) {
+                    if (current_config != -1) {
+                        fprintf(stderr, "Error: can only set --label before setting a @column\n");
+                        return 1;
+                    }
                     char *next = strtok(NULL, " \t\r\n");
-                    if (next) label_col = xstrdup(next);
-                } else if (strcmp(arg, "--predict") == 0) {
+                    if (next)
+                        label_col = xstrdup(next);
+                } 
+                else if(!strcmp(arg, "--predict")) {
+                    if (current_config != -1) {
+                        fprintf(stderr, "Error: can only set --predict before setting a @column\n");
+                        return 1;
+                    }
                     char *next = strtok(NULL, " \t\r\n");
-                    if (next) predict_col = xstrdup(next);
-                } else if (strcmp(arg, "--threshold") == 0) {
+                    if (next)
+                        predict_col = xstrdup(next);
+                } 
+                else if(!strcmp(arg, "--threshold")) {
                     char *next = strtok(NULL, " \t\r\n");
-                    if (next) threshold = atof(next);
-                } else if (strcmp(arg, "--members") == 0) {
+                    if (next) {
+                        double val = atof(next);
+                        if (current_config == -1)
+                            threshold = val;
+                        else
+                            configs[current_config].threshold = val;
+                    }
+                } 
+                else if(!strcmp(arg, "--numbers")) {
                     char *next = strtok(NULL, " \t\r\n");
-                    if (next) min_samples = (unsigned long)atol(next);
-                } else if (strcmp(arg, "--numbers") == 0) {
+                    if (current_config != -1) {
+                        fprintf(stderr, "Error: can only set --numbers before setting a @column\n");
+                        return 1;
+                    }
+                    if(next) 
+                        categorical_dimensions = (unsigned long)atol(next);
+                } 
+                else if(!strcmp(arg, "--numeric")) {
+                    if (current_config == -1) {
+                        fprintf(stderr, "Error: can only declare --numeric after setting a @column\n");
+                        return 1;
+                    }
+                    configs[current_config].status = CONFIG_STATUS_NUMERIC;
+                }
+                else if(!strcmp(arg, "--binary")) {
                     char *next = strtok(NULL, " \t\r\n");
-                    if (next) categorical_dimensions = (unsigned long)atol(next);
-                } else if (arg[0] != '-') {
+                    if (current_config == -1) {
+                        fprintf(stderr, "Error: can only set --binary after setting a @column\n");
+                        return 1;
+                    }
+                    if (next) {
+                        configs[current_config].status = CONFIG_STATUS_BINARY;
+                        configs[current_config].binary = xstrdup(next);
+                    }
+                } 
+                else if(!strcmp(arg, "--skip")) {
+                    if (current_config == -1) {
+                        fprintf(stderr, "Error: can only --skip after setting a @column\n");
+                        return 1;
+                    }
+                    configs[current_config].status = CONFIG_STATUS_SKIP;
+                } 
+                else if(!strcmp(arg, "--members")) {
+                    if (current_config != -1) {
+                        fprintf(stderr, "Error: can only set --numbers before setting a @column\n");
+                        return 1;
+                    }
+                    char *next = strtok(NULL, " \t\r\n");
+                    if(next) min_samples = (unsigned long)atol(next);
+                } 
+                else if(arg[0] != '-' && arg[0] != 0) {
+                    if (current_config != -1) {
+                        fprintf(stderr, "Error: can only set a file path before setting a @column\n");
+                        return 1;
+                    }
                     filepath = xstrdup(arg);
                 }
 
@@ -174,6 +263,7 @@ int main(int argc, char *argv[]) {
             return 1;
         }
     }
+
     if (!filepath) {
         fprintf(stderr, "Error: no input file provided.\n");
         return 1;
@@ -185,6 +275,7 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
+    // info
     char line[MAX_LINE_SIZE];
     char col_names[MAX_COLS][MAX_STR_LEN];
     size_t col_count = 0, col_pos = 0;
@@ -228,7 +319,7 @@ int main(int argc, char *argv[]) {
     col_count++;
     printf("Detected %zu columns\n", col_count);
 
-    // Init mhash
+    // Init header mhash
     size_t map_table_size = col_count*col_count + col_count*2 + 1;
     MHASH_INDEX_UINT map_table[map_table_size];
     const char *col_ptrs[MAX_COLS];
@@ -252,12 +343,31 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Stats
+    // column info (most of it will be useful later but preallocated anyway
     struct Column columns[MAX_COLS];
     unsigned long total_rows = 0;
     size_t col_start=0, col_end=0;
-    int values[col_count];
+    double values[MAX_COLS];
     memset(columns, 0, sizeof(columns));
+
+    // attach configs to columns
+    for (int i = 0; i <= current_config; ++i) {
+        MHASH_UINT pos = mhash_entry_pos(&map, configs[i].name);
+        MHASH_INDEX_UINT idx = map.table[pos];
+        if(idx == MHASH_EMPTY_SLOT) {
+            fprintf(stderr, "Error: configured column '%s' not found in header\n", configs[i].name);
+            return 1;
+        }
+        if(strcmp(col_ptrs[idx], configs[i].name)) {
+            fprintf(stderr, "Error: configured column '%s' not found in header\n", configs[i].name);
+            return 1;
+        }
+        if(columns[idx].config) {
+            fprintf(stderr, "Error: configured column '%s' multiple times\n", configs[i].name);
+            return 1;
+        }
+        columns[idx].config = &configs[i];
+    }
 
     // Process data
     while (fgets(line, sizeof(line), f)) {
@@ -265,7 +375,7 @@ int main(int argc, char *argv[]) {
         total_rows++;
         col_start = 0;
         col_end = 0;
-        memset(values, 0, sizeof(int)*col_count);
+        memset(values, 0, sizeof(values));
         for (size_t i = 0;; ++i) {
             char c = line[i];
             if (c == '\r' || c == ' ' || c=='\'' || c=='"') {
@@ -286,9 +396,7 @@ int main(int argc, char *argv[]) {
                     fprintf(stderr, "Error: column value too large\n");
                     return 1;
                 }
-                // each column also have some explicit boolean value
-                if (line[col_start]=='y' || line[col_start]=='1') 
-                    values[current_col] = 1;
+                line[col_end] = '\0'; // we will never go back
                 // initialize mhash for the column
                 if(columns[current_col].num_dimensions==0) {
                     size_t table_size = 1;
@@ -311,9 +419,23 @@ int main(int argc, char *argv[]) {
                     }
                     //printf("Initialized column %s with first dimension %s\n", col_names[current_col], columns[current_col].dimension_names[0]);
                 }
-                line[col_end] = '\0'; // we will never go back
+                // each column also has some explicit boolean value
+                int has_been_processed = 0;
                 int is_number = isdigit(line[col_start]) || line[col_start]=='-' || line[col_start]=='+';
-                if (is_number && columns[current_col].num_dimensions >= categorical_dimensions) {
+
+                if(columns[current_col].config && columns[current_col].config->status) {
+                    has_been_processed = 1;
+                    if(columns[current_col].config->status==CONFIG_STATUS_NUMERIC) 
+                        values[current_col] = atof(&line[col_start]);
+                    else if(columns[current_col].config->status==CONFIG_STATUS_BINARY)
+                         values[current_col] = strcmp(&line[col_start], columns[current_col].config->binary)?0:1;
+                }
+                
+                if(!has_been_processed && (line[col_start]=='y' || line[col_start]=='Y' || line[col_start]=='1')) 
+                    values[current_col] = 1.0;
+                if(has_been_processed) {
+                }
+                else if(is_number && columns[current_col].num_dimensions >= categorical_dimensions) {
                     columns[current_col].active_dim = 0; // numeric: single global bucket
                 } 
                 else {
@@ -397,6 +519,8 @@ int main(int argc, char *argv[]) {
         for (size_t d = 0; d < col->num_dimensions; ++d) {
             struct Stats *st = &col->stats[d];
             if (st->count < min_samples)
+                continue;
+            if(col->config && col->config->status==CONFIG_STATUS_SKIP)
                 continue;
             double tp = (double)st->tp;
             double tn = (double)st->tn;

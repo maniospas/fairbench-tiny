@@ -1,0 +1,28 @@
+{
+  "name": "fairbench-tiny-syntax",
+  "displayName": "FairBench Tiny Syntax",
+  "description": "Syntax highlighting for FairBench-Tiny script files (.fb)",
+  "version": "0.0.1",
+  "publisher": "maniospas",
+  "engines": {
+    "vscode": "^1.70.0"
+  },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "fairbench-tiny",
+        "aliases": ["FairBench Tiny", "fbt"],
+        "extensions": [".fb"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "fairbench-tiny",
+        "scopeName": "source.fbt",
+        "path": "./syntaxes/fbt.tmLanguage.json"
+      }
+    ]
+  }
+}

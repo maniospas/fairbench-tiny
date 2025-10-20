@@ -27,8 +27,8 @@ create the executable `build/fbt`. Use the *fbt* executable like so:
 - --members &lt;min_count> Minimum number of samples required for a group to be included in the report. Groups with fewer members are ignored.
 
 You can also pass as argument a configuration *.fb* file like the ones in the examples. 
-This can contain line comments starting with `#` after setting the dataset file in the first line.
-Run those files like so (you can still provide arguments externally, but these are overwritten by
+This can have all other command line arguments, or contain line comments starting with `#`.
+Run those files like below (you can still provide arguments externally, but these are overwritten by
 file-specific options):
 
 ```bash
