@@ -1,80 +1,40 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "mhash/mhash.h"
-#include "mhash/mhash_str.h"
-
-
-#define MAX_COLS 64
-#define MAX_STR_LEN 128
-#define MAX_LINE_SIZE 4096
-
-#define RESET   "\033[0m"
-#define RED     "\033[31m"
-#define GREEN   "\033[32m"
-#define YELLOW  "\033[33m"
-#define CYAN    "\033[36m"
-#define BOLD    "\033[1m"
-
 #include <ctype.h>
-#include <stdlib.h>
+#include <unistd.h>
+#include "data.h"
+#include <time.h>
 
-static inline char *xstrdup(const char *s) {
-    size_t n = strlen(s) + 1;
-    char *p = (char *)malloc(n);
-    if (!p) {
-        fprintf(stderr, "Error: out of memory copying string\n");
-        exit(1);
+
+#ifdef _WIN32
+  #include <windows.h>
+  #include <io.h>        // for _fileno
+  #define fileno _fileno // MSVC name difference
+#else
+  #include <unistd.h>
+  #include <poll.h>
+#endif
+static void poll_for_data(FILE *f) {
+#ifdef _WIN32
+    // Windows version — no POSIX poll, just sleep briefly.
+    // stdin and pipes usually block automatically anyway.
+    Sleep(100); // milliseconds
+#else
+    // Unix-like version — efficiently waits until input becomes available.
+    int fd = fileno(f);
+    struct pollfd pfd;
+    pfd.fd = fd;
+    pfd.events = POLLIN; // wait for readable data
+    int ret = poll(&pfd, 1, 100); // timeout: 100 ms
+
+    if (ret < 0) {
+        // poll failed (e.g. EINTR); fallback to a short sleep
+        usleep(100000);
     }
-    memcpy(p, s, n);
-    return p;
-} 
-
-static char is_delimiter(char c) {
-    return c == ',' || c == '\t' || c == ';';
+#endif
 }
 
-
-#define CONFIG_STATUS_AUTO 0       // follows global defaults
-#define CONFIG_STATUS_SKIP 1       // skips the column
-#define CONFIG_STATUS_NUMERIC 2    // custom number of categories (uses Config.categories)
-#define CONFIG_STATUS_BINARY 3     // custom number of categories (uses Config.binary)
-
-struct Config {
-    char* name;
-    int status;
-    double threshold;
-    union {
-        int categories;
-        char* binary;
-    };
-};
-
-struct Stats {
-    unsigned long tp;
-    unsigned long tn;
-    unsigned long positives;
-    unsigned long labels;
-    unsigned long count;
-};
-
-struct Column {
-    MHash map;
-    size_t num_dimensions;
-    MHASH_INDEX_UINT active_dim;
-    char** dimension_names;
-    struct Stats *stats;
-    struct Config *config;
-};
-
-static const char *color_for(double v, double threshold) {
-    if (v < threshold)
-        return RED;
-    if (v > 1-threshold)
-        return GREEN;
-    return RESET;
-}
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
@@ -91,6 +51,9 @@ int main(int argc, char *argv[]) {
 
     struct Config configs[MAX_COLS];
     int current_config = -1;
+
+    double stream_interval = 0;
+    double forget = 0;
 
     // Parse CLI args
     int in_comments = 0;
@@ -115,6 +78,10 @@ int main(int argc, char *argv[]) {
             min_samples = (unsigned long)atol(argv[++i]);
         else if (strcmp(argv[i], "--numbers") == 0 && i + 1 < argc)
             categorical_dimensions = (unsigned long)atol(argv[++i]);
+        else if (strcmp(argv[i], "--stream") == 0 && i + 1 < argc) 
+            stream_interval = (double)atof(argv[++i]);
+        else if (strcmp(argv[i], "--forget") == 0 && i + 1 < argc) 
+            forget = (double)atof(argv[++i]);
         else if (argv[i][0] != '-')
             filepath = argv[i];
     }
@@ -126,6 +93,7 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "Error: could not open argument file '%s'\n", filepath);
             return 1;
         }
+        filepath = NULL;
 
         char line[MAX_LINE_SIZE];
         int in_comments_fb = 0;
@@ -204,6 +172,24 @@ int main(int argc, char *argv[]) {
                             configs[current_config].threshold = val;
                     }
                 } 
+                else if (strcmp(arg, "--stream") == 0) {
+                    char *next = strtok(NULL, " \t\r\n");
+                    if (current_config != -1) {
+                        fprintf(stderr, "Error: can only set --stream before setting a @column\n");
+                        return 1;
+                    }
+                    if (next)
+                        stream_interval = (double)atof(next);
+                }
+                else if (strcmp(arg, "--forget") == 0) {
+                    char *next = strtok(NULL, " \t\r\n");
+                    if (current_config != -1) {
+                        fprintf(stderr, "Error: can only set --forget before setting a @column\n");
+                        return 1;
+                    }
+                    if (next)
+                        forget = (double)atof(next);
+                }
                 else if(!strcmp(arg, "--numbers")) {
                     char *next = strtok(NULL, " \t\r\n");
                     if (current_config != -1) {
@@ -258,21 +244,31 @@ int main(int argc, char *argv[]) {
             }
         }
         fclose(fb);
-        if (!filepath) {
-            fprintf(stderr, "Error: no data file specified in .fb file\n");
+        if (!filepath && !stream_interval) {
+            fprintf(stderr, "Error: no data file or --stream specified in .fb script\n");
             return 1;
         }
     }
 
-    if (!filepath) {
-        fprintf(stderr, "Error: no input file provided.\n");
+    if (!filepath && !stream_interval) {
+        fprintf(stderr, "Error: no input file or --stream specification provided.\n");
         return 1;
     }
 
-    FILE *f = fopen(filepath, "r");
-    if (!f) {
-        fprintf(stderr, "Error opening file: %s\n", filepath);
-        return 1;
+    FILE *f = NULL;
+    if(filepath) {
+        f = fopen(filepath, "r");
+        if (!f) {
+            fprintf(stderr, "Error opening file: %s\n", filepath);
+            return 1;
+        }
+    }
+    else {
+        f = stdin;
+        if (!f) {
+            fprintf(stderr, "Error getting stdin\n");
+            return 1;
+        }
     }
 
     // info
@@ -281,6 +277,14 @@ int main(int argc, char *argv[]) {
     size_t col_count = 0, col_pos = 0;
     MHASH_INDEX_UINT label_index = MHASH_EMPTY_SLOT;
     MHASH_INDEX_UINT predict_index = MHASH_EMPTY_SLOT;
+    
+    if(!filepath) {
+        printf("\033[2J\033[H\n\n%s----- Live report -----%s\n", GREEN,RESET);
+        printf("FairBench-tiny is running in --stream\n");
+        if(!filepath)    
+            printf("%sCurrently waiting on stdin%s because no data file was provided\n", RED,RESET);
+        printf("\nWaiting for first header line...\n");
+    }
 
     // Parse header
     if (!fgets(line, sizeof(line), f)) {
@@ -370,7 +374,37 @@ int main(int argc, char *argv[]) {
     }
 
     // Process data
-    while (fgets(line, sizeof(line), f)) {
+    long int start_time = time(NULL);
+    long int last_report_print = start_time-stream_interval-1;
+    while (1) {
+        if (!fgets(line, sizeof(line), f)) {
+            if(filepath) break;  // normal batch exit
+            long int now = time(NULL);
+            if(difftime(now, last_report_print)>=stream_interval) {
+                last_report_print = now;
+                printf("\033[2J\033[H\n\n%s----- Live report (%.0f sec) -----%s\n", GREEN, difftime(now, start_time), RESET);
+                printf("FairBench-tiny is running in --stream mode\n");
+                if(!filepath)    
+                    printf("%sCurrently waiting on stdin%s because no data file was provided\n", RED,RESET);
+                if(!total_rows)
+                    printf("\nWaiting for first data line...\n");
+                else
+                    print_report(
+                        columns,
+                        col_ptrs,
+                        col_count, 
+                        predict_index, 
+                        label_index,
+                        min_samples,
+                        total_rows,
+                        threshold
+                    );
+            }
+            clearerr(f);          // EOF reached, wait for more
+            poll_for_data(f);     // e.g. select(), poll(), or sleep()
+            continue;
+        }
+
         col_pos = 0;
         total_rows++;
         col_start = 0;
@@ -483,162 +517,57 @@ int main(int argc, char *argv[]) {
             col_end = i+1;
         }
 
-        int y_true = values[label_index];
-        int y_pred = values[predict_index];
+        double y_true = values[label_index];
+        double y_pred = values[predict_index];
         for (size_t i = 0; i < col_count; ++i) {
             struct Stats *st = &columns[i].stats[columns[i].active_dim];
-            st->tp += (unsigned long)(y_true && y_pred);
-            st->tn += (unsigned long)(!y_true && !y_pred);
-            st->positives += (unsigned long)y_pred;
-            st->labels += (unsigned long)y_true;
-            st->count++;
+            st->tp += y_true * y_pred;
+            st->tn += (1.0 - y_true) * (1.0 - y_pred);
+            st->positives += y_pred;
+            st->labels += y_true;
+            st->count += 1.0;
+        }
+
+        if (stream_interval) {
+            long int now = time(NULL);
+            if(difftime(now, last_report_print)>=stream_interval) {
+                last_report_print = now;
+                printf("\033[2J\033[H\n\n%s----- Live report (%.0f sec) -----%s\n", GREEN, difftime(now, start_time), RESET);
+                printf("FairBench-tiny is running in --stream mode\n");
+                if(!filepath)    
+                    printf("%sCurrently waiting on stdin%s because no data file was provided\n", RED,RESET);
+                if(!total_rows)
+                    printf("\nWaiting for first data line...\n");
+                else
+                    print_report(
+                        columns,
+                        col_ptrs,
+                        col_count, 
+                        predict_index, 
+                        label_index,
+                        min_samples,
+                        total_rows,
+                        threshold
+                    );
+            }
         }
     }
-
+    fclose(f);
     if (total_rows == 0) {
         fprintf(stderr, "No data rows found (but headers were read)\n");
         return 1;
     }
 
-    printf("\n%s%-30s%s %sacc%s     %stpr%s     %stnr%s     %spr%s\n",
-           CYAN, "Groups", RESET, BOLD, RESET, BOLD, RESET, BOLD, RESET, BOLD, RESET);
-
-    // Initialize aggregate accumulators
-    double acc_min = 1.0, acc_max = 0.0, acc_wsum = 0.0, acc_wsumv = 0.0;
-    double tpr_min = 1.0, tpr_max = 0.0, tpr_wsum = 0.0, tpr_wsumv = 0.0;
-    double tnr_min = 1.0, tnr_max = 0.0, tnr_wsum = 0.0, tnr_wsumv = 0.0;
-    double pr_min  = 1.0, pr_max  = 0.0, pr_wsum  = 0.0, pr_wsumv  = 0.0;
-
-    // Re-run over valid columns to accumulate aggregates
-    for (size_t i = 0; i < col_count; ++i) {
-        if (i == label_index || i == predict_index)
-            continue;
-        struct Column *col = &columns[i];
-        if (col->num_dimensions == 0 || !col->stats)
-            continue;
-        for (size_t d = 0; d < col->num_dimensions; ++d) {
-            struct Stats *st = &col->stats[d];
-            if (st->count < min_samples)
-                continue;
-            if(col->config && col->config->status==CONFIG_STATUS_SKIP)
-                continue;
-            double tp = (double)st->tp;
-            double tn = (double)st->tn;
-            double count = (double)st->count;
-            double pred_pos = (double)st->positives;
-            double label_pos = (double)st->labels;
-            double label_neg = count - label_pos;
-            double acc = count ? (tp + tn) / count : 0.0;
-            double tpr = label_pos ? tp / label_pos : 0.0;
-            double tnr = label_neg ? tn / label_neg : 0.0;
-            double pr  = pred_pos ? tp / pred_pos : 0.0;
-            if (acc < acc_min) acc_min = acc;
-            if (acc > acc_max) acc_max = acc;
-            acc_wsum += count;
-            acc_wsumv += count * acc;
-            if (tpr < tpr_min) tpr_min = tpr;
-            if (tpr > tpr_max) tpr_max = tpr;
-            tpr_wsum += count;
-            tpr_wsumv += count * tpr;
-            if (tnr < tnr_min) tnr_min = tnr;
-            if (tnr > tnr_max) tnr_max = tnr;
-            tnr_wsum += count;
-            tnr_wsumv += count * tnr;
-            if (pr < pr_min) pr_min = pr;
-            if (pr > pr_max) pr_max = pr;
-            pr_wsum += count;
-            pr_wsumv += count * pr;
-            const char *acc_color = color_for(acc, threshold);
-            const char *tpr_color = color_for(tpr, threshold);
-            const char *tnr_color = color_for(tnr, threshold);
-            const char *pr_color  = color_for(pr, threshold);
-            const char *dim_name = col->num_dimensions==1?"[number]":col->dimension_names[d];
-            printf("%-15s%-15s %s%.3f%s  %s%.3f%s  %s%.3f%s  %s%.3f%s\n",
-                   col_names[i], dim_name,
-                   acc_color, acc, RESET,
-                   tpr_color, tpr, RESET,
-                   tnr_color, tnr, RESET,
-                   pr_color, pr, RESET);
-        }
-    }
-
-
-
-    // Compute derived fairness and weighted mean quantities
-    double acc_wmean = acc_wsum ? acc_wsumv / acc_wsum : 0.0;
-    double tpr_wmean = tpr_wsum ? tpr_wsumv / tpr_wsum : 0.0;
-    double tnr_wmean = tnr_wsum ? tnr_wsumv / tnr_wsum : 0.0;
-    double pr_wmean  = pr_wsum  ? pr_wsumv  / pr_wsum  : 0.0;
-
-    double acc_diff_fair = (acc_min > 0.0) ? (acc_min / acc_max) : 0.0;
-    double tpr_diff_fair = (tpr_min > 0.0) ? (tpr_min / tpr_max) : 0.0;
-    double tnr_diff_fair = (tnr_min > 0.0) ? (tnr_min / tnr_max) : 0.0;
-    double pr_diff_fair  = (pr_min  > 0.0) ? (pr_min  / pr_max)  : 0.0;
-
-    double acc_abs_fair = 1.0 - (acc_max - acc_min);
-    double tpr_abs_fair = 1.0 - (tpr_max - tpr_min);
-    double tnr_abs_fair = 1.0 - (tnr_max - tnr_min);
-    double pr_abs_fair  = 1.0 - (pr_max  - pr_min);
-
-    // Print final aggregate table (strategies as rows)
-    printf("\n%s%-30s%s %sacc%s     %stpr%s     %stnr%s     %spr%s\n",
-           CYAN, "Summary", RESET, BOLD, RESET, BOLD, RESET, BOLD, RESET, BOLD, RESET);
-
-    const char *acc_col, *tpr_col, *tnr_col, *pr_col;
-
-    // --- MIN ---
-    acc_col = color_for(acc_min, threshold);
-    tpr_col = color_for(tpr_min, threshold);
-    tnr_col = color_for(tnr_min, threshold);
-    pr_col  = color_for(pr_min, threshold);
-    printf("%-30s %s%.3f%s  %s%.3f%s  %s%.3f%s  %s%.3f%s\n",
-           "min",
-           acc_col, acc_min, RESET,
-           tpr_col, tpr_min, RESET,
-           tnr_col, tnr_min, RESET,
-           pr_col, pr_min, RESET);
-
-    // --- WEIGHTED MEAN ---
-    acc_col = color_for(acc_wmean, threshold);
-    tpr_col = color_for(tpr_wmean, threshold);
-    tnr_col = color_for(tnr_wmean, threshold);
-    pr_col  = color_for(pr_wmean, threshold);
-    printf("%-30s %s%.3f%s  %s%.3f%s  %s%.3f%s  %s%.3f%s\n",
-           "weighted mean",
-           acc_col, acc_wmean, RESET,
-           tpr_col, tpr_wmean, RESET,
-           tnr_col, tnr_wmean, RESET,
-           pr_col, pr_wmean, RESET);
-
-    // --- DIFFERENTIALLY FAIR ---
-    acc_col = color_for(acc_diff_fair, threshold);
-    tpr_col = color_for(tpr_diff_fair, threshold);
-    tnr_col = color_for(tnr_diff_fair, threshold);
-    pr_col  = color_for(pr_diff_fair, threshold);
-    printf("%-30s %s%.3f%s  %s%.3f%s  %s%.3f%s  %s%.3f%s\n",
-           "differentially fair",
-           acc_col, acc_diff_fair, RESET,
-           tpr_col, tpr_diff_fair, RESET,
-           tnr_col, tnr_diff_fair, RESET,
-           pr_col, pr_diff_fair, RESET);
-
-    // --- ABSOLUTELY FAIR ---
-    acc_col = color_for(acc_abs_fair, threshold);
-    tpr_col = color_for(tpr_abs_fair, threshold);
-    tnr_col = color_for(tnr_abs_fair, threshold);
-    pr_col  = color_for(pr_abs_fair, threshold);
-    printf("%-30s %s%.3f%s  %s%.3f%s  %s%.3f%s  %s%.3f%s\n",
-           "absolutely fair",
-           acc_col, acc_abs_fair, RESET,
-           tpr_col, tpr_abs_fair, RESET,
-           tnr_col, tnr_abs_fair, RESET,
-           pr_col, pr_abs_fair, RESET);
-
-
-    printf("\nSamples: %lu\n", total_rows);
-    printf("Threshold: %.2f\n", threshold);
-
-    fclose(f);
+    print_report(
+        columns,
+        col_ptrs,
+        col_count, 
+        predict_index, 
+        label_index,
+        min_samples,
+        total_rows,
+        threshold
+    );
     return 0;
 
 }

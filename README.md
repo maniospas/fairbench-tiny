@@ -10,7 +10,8 @@ It provides a lightweight alternative to the [**FairBench**](https://github.com/
 - Aggregate group-wise metrics for classification (tpr, tnr, accuracy, pr).
 - Color-coded output and exit codes for failing analysis. 
 - Minimal energy footprint in a few kB of memory - set up as a worker.
-- Expressive arguments that can be read from a file; revisit complicated analysis.
+- Expressive arguments that can be read from *.fb* scripts to revisit complicated analysis.
+- Streaming interface.
 
 ## ⚡ Quickstart
 
@@ -24,12 +25,14 @@ Run the executable:
 ./fbt data.csv [--label colname] [--predict colname] [--threshold value] [--members min_count]
 ```
 
-- data.csv` Path to the CSV/TSV data file to analyze.
+- data.csv Path to the CSV/TSV data file to analyze. If no path is provided, *fbt* polls stdin every 100ms to provide live updates.
 - --label &lt;colname> Name of the column containing true labels (default: *label*).
 - --predict &lt;colname> Name of the column containing predicted labels (default: *predict*).
 - --threshold &lt;value> Highlight values below this fairness threshold in red, and above 1-threshold in green (default: 0.0).
 - --numbers &lt;value> Declares that numerical data columns with less than the number of distinct values should be treated as categorical. For example, you might have values 1,2,3 for marital status, where the identifiers are explained elsewhere.
 - --members &lt;min_count> Minimum number of samples required for a group to be included in the fairness report. Groups with fewer members are ignored.
+- --stream &lt;rows> Stream an update after every fixed number of seconds. If this is set and no path is provided, you get live
+updates from *stdin*.
 - @&lt;NAME> Switches to declaring column-specific characteristics. These are presented next.
 - --numerical Indicates that the column holds numerical data (this is prioritized over the globally set --numbers).
 - --skip Ignores the column during parsing.
@@ -77,4 +80,36 @@ gender,region,label,predict
 0,0,0,0
 1,1,1,0
 0,1,0,1
+```
+
+## Streaming interface
+
+You can monitor an algorithm while it is running by having it flush predictions in *stdout*.
+For example, in Linux you can pipe the outcome like below. The example use a Python script 
+to demonstrate an algorithm outputting results.
+
+```python
+# examples/streamer.py
+import time
+import sys
+import random
+
+# --- Write header ---
+sys.stdout.write("gender,region,label,predict\n")
+sys.stdout.flush()
+
+while True:
+    gender = random.choice(["man", "woman", "other"])
+    region = random.choice(["here", "there", "everywhere", "nowhere"])
+    label = random.choice(["0", "1"])
+    predict = random.choice(["0", "1"])
+    sys.stdout.write(f"{gender},{region},{label},{predict}\n")
+
+    if random.random() < 0.05:
+        sys.stdout.flush() # randomly flush for demonstration
+    time.sleep(0.01) # mimics a slow algorithm (not needed)
+```
+
+```bash
+python3 examples/streamer.py | ./fbt --stream 0.1
 ```

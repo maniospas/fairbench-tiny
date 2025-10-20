@@ -78,9 +78,9 @@ jobs:
         uses: actions/create-release@v1
         with:
           tag_name: "v0.${{ github.run_number }}"
-          release_name: "CLI Release v0.${{ github.run_number }}"
+          release_name: "FairBench-tiny v0.${{ github.run_number }}"
           body: |
-            Automatic release for CLI version v0.${{ github.run_number }}
+            Automatic release for FairBench-tiny v0.${{ github.run_number }}. Download the executable corresponding to your platform.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
