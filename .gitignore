@@ -3,3 +3,7 @@ build
 *.egg-info
 **/*.pyd
 *.exe
+build/
+fbt
+examples/bank.csv
+old/

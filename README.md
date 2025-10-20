@@ -1,36 +1,45 @@
-# fairbench-tiny
+# fairBench-tiny
 
-A performant C++ implementation of several fairness assessment functionalities that are 
-originally offerred by the [fairbench](https://github.com/mever-team/FairBench) framework.
-These are made type-safe and exposed through the following equivalent interfaces:
+This is a **high-performance C++ utility** for evaluating basic **fairness metrics** from large tabular datasets.  
+It provides a lightweight command-line alternative to the [**FairBench**](https://github.com/mever-team/FairBench) Python framework — ideal for environments where Python is unavailable or where speed and memory efficiency are critical.
 
-- C++ library
-- Python library
-- Command-line tool for csv data evaluation
+## ✨ Features
 
-*This repository's code is still under development and not mature enough to use in production.*
+- **Fast parsing** of large CSV/TSV files with bare metal code.  
+- **Group-wise metrics** for binary classification (tpr, tnr, accuracy, pr)
+- **Aggregate fairness summaries**:
+- **Color-coded output** for quick visual analysis.  
+- **Minimal energy footprint** in a few kB of memory - set up as a worker.
 
-**License:** Apache 2.0
+## ⚡ Quickstart
 
-
-## Sneak peek
-
-Generate reports like the one below and get details on which computations
-took place to determine offending values.
+Manual build: clone this repository and run `make`. This will
+create the executable `build/fbt`. Use the *fbt* executable like so:
 
 ```bash
-> .\fbt report examples\test.csv
---------------------------------------------------------------------------
-Report on 3 sensitive attributes: women,men,nonbin
-               max            maxdiff        differential   gini
-error          1.000          0.667          0.667          0.242
-fpr            1.000          1.000          1.000          0.444
-fnr            1.000          1.000          1.000          0.333
---------------------------------------------------------------------------
+./fbt data.csv [--label colname] [--predict colname] [--threshold value] [--members min_count]
 ```
 
-## Quickstart
+| Flag | Description |
+|------|--------------|
+| `data.csv` | Path to the CSV/TSV data file to analyze. |
+| `--label <colname>` | Name of the column containing true labels (default: `label`). |
+| `--predict <colname>` | Name of the column containing predicted labels (default: `predict`). |
+| `--threshold <value>` | Highlight values below this fairness threshold in **red**, and above `1 - threshold` in **green** (default: `0.0`). |
+| `--members <min_count>` | Minimum number of samples required for a group to be included in the report. Groups with fewer members are ignored. |
 
-[C++](docs/cpp.md) <br>
-[Python](docs/python.md) <br>
-[Command line](docs/cli.md) <br>
+
+## 📘 Expected Input
+
+The first line must contain column headers (group names, *label*, and *predict*). Columns may be separated by **comma `,`**, **tab `\t`**, or **semicolon `;`** — the first delimiter encountered is used. **Whitespace** is ignored everywhere.  
+
+All rows must have the same number of columns as the header, and must contain **binary (0/1)** values for every column. 
+Here is an example:
+
+```csv
+gender,region,label,predict
+1,0,1,1
+0,0,0,0
+1,1,1,0
+0,1,0,1
+```

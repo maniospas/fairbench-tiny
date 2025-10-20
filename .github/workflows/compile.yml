@@ -26,12 +26,12 @@ jobs:
 
       - name: Build on Ubuntu
         if: matrix.os == 'ubuntu-latest'
-        run: g++ fbt.cpp -O2 -o fbt -std=c++20
+        run: g++ fbt.cpp -O3 -o fbt -std=c++23
         shell: bash
 
       - name: Build on Windows
         if: matrix.os == 'windows-latest'
-        run: cl fbt.cpp /std:c++17 /EHsc /Fe:fbt.exe
+        run: cl fbt.cpp /std:c++23 /EHsc /Fe:fbt.exe -O3
 
       - name: Archive binaries
         run: |
