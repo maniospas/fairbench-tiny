@@ -1,0 +1,5 @@
+examples/credit.csv  # Name of the file (cannot place comments before that)
+--label class        # This is the true label column
+--predict class      # This is the predicted label column
+--threshold 0.1      # Assessments <0.1 in red, those >0.9 in green
+--numbers 10         # If a numeric column has less than 10 numbers, it's treated as categorical

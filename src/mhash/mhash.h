@@ -26,7 +26,7 @@ extern "C" {
 #define MHASH_FAILED 1
 #define MHASH_OK 0
 #ifndef MHASH_MAX_HASHES
-#define MHASH_MAX_HASHES 16
+#define MHASH_MAX_HASHES 8
 #endif
 
 #ifndef MHASH_UINT
@@ -49,13 +49,14 @@ typedef struct MHash {
     MHASH_INDEX_UINT *table;
     size_t table_size;
     MHASH_UINT num_hashes;
+    MHASH_UINT first_hash_id;
     size_t count;
     mhash_func hash_func;
 } MHash;
 
-static inline MHASH_UINT mhash__concat(mhash_func hash_func, MHASH_UINT num_hashes, const void *s) {
+static inline MHASH_UINT mhash__concat(mhash_func hash_func, MHASH_UINT first_hash_id, MHASH_UINT num_hashes, const void *s) {
     MHASH_UINT combined = 0;
-    for (MHASH_UINT i = 1; i <= num_hashes; ++i) {
+    for (MHASH_UINT i = first_hash_id; i <= num_hashes; ++i) {
         MHASH_UINT part = hash_func(s, i);
         combined ^= part;//ROTL(part, i*2);
     }
@@ -75,6 +76,7 @@ static inline int mhash_init(MHash *ph,
     ph->count      = count;
     ph->hash_func  = hash_func;
     ph->num_hashes = 0;
+    ph->first_hash_id = 1;
 
     size_t worst_case = MHASH_MAX_HASHES;
 
@@ -90,9 +92,10 @@ static inline int mhash_init(MHash *ph,
         ph->num_hashes++;
         int ok = 1;
         MHASH_UINT num_hashes = ph->num_hashes;
+        MHASH_UINT first_hash_id = ph->first_hash_id;
         mhash_func hash_func = ph->hash_func;
         for (MHASH_UINT i = 0; i < count; ++i) {
-            MHASH_UINT idx = mhash__concat(hash_func, num_hashes, strings[i]) % (MHASH_UINT)table_size;
+            MHASH_UINT idx = mhash__concat(hash_func, first_hash_id, num_hashes, strings[i]) % (MHASH_UINT)table_size;
             if (table[idx] != MHASH_EMPTY_SLOT) {
                 ok = 0;
                 break;
@@ -106,11 +109,11 @@ static inline int mhash_init(MHash *ph,
 
 
 static inline MHASH_UINT mhash_entry_pos(const MHash *ph, const void *s) {
-    return mhash__concat(ph->hash_func, ph->num_hashes, s) % (MHASH_UINT)ph->table_size;
+    return mhash__concat(ph->hash_func, ph->first_hash_id, ph->num_hashes, s) % (MHASH_UINT)ph->table_size;
 }
 
 static inline MHASH_INDEX_UINT mhash_entry(const MHash *ph, const void *s) {
-    MHASH_UINT idx = mhash__concat(ph->hash_func, ph->num_hashes, s) % (MHASH_UINT)ph->table_size;
+    MHASH_UINT idx = mhash__concat(ph->hash_func, ph->first_hash_id, ph->num_hashes, s) % (MHASH_UINT)ph->table_size;
     return ph->table[idx];
 }
 
@@ -120,7 +123,7 @@ static inline void *mhash_check_at(const MHash *ph,
                           void *values,
                           size_t sizeof_value,
                           int (*cmp_func)(const void *, const void *)) {
-    MHASH_UINT idx = mhash__concat(ph->hash_func, ph->num_hashes, s) % (MHASH_UINT)ph->table_size;
+    MHASH_UINT idx = mhash__concat(ph->hash_func, ph->first_hash_id, ph->num_hashes, s) % (MHASH_UINT)ph->table_size;
     MHASH_INDEX_UINT entry = ph->table[idx];
     if (entry == MHASH_EMPTY_SLOT)
         return NULL;

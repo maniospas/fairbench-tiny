@@ -44,7 +44,7 @@ static inline MHASH_UINT mhash_str_all(const void *_s, MHASH_UINT id) {
 static inline MHASH_UINT mhash_str_prefix(const void *_s, MHASH_UINT id) {
     MHASH_UINT h = 0x9E3779B97F4A7C15ULL * id;
     const unsigned char *s = (const unsigned char *)_s;
-    const unsigned char *end = s + id;
+    const unsigned char *end = s + id*id;
     for (;s!=end; ++s) {
         unsigned char c = *s;
         if (c == 0) break;

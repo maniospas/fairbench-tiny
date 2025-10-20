@@ -2,13 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MHASH_MAX_HASHES 5
-
 #include "mhash/mhash.h"
 #include "mhash/mhash_str.h"
 
 
-#define MAX_COLS 32
+#define MAX_COLS 64
 #define MAX_STR_LEN 128
 #define MAX_LINE_SIZE 4096
 
@@ -21,6 +19,17 @@
 
 #include <ctype.h>
 #include <stdlib.h>
+
+static inline char *xstrdup(const char *s) {
+    size_t n = strlen(s) + 1;
+    char *p = (char *)malloc(n);
+    if (!p) {
+        fprintf(stderr, "Error: out of memory copying string\n");
+        exit(1);
+    }
+    memcpy(p, s, n);
+    return p;
+}
 
 static inline size_t minimum(size_t a, size_t b) {
     return (a < b) ? a : b;
@@ -65,10 +74,22 @@ int main(int argc, char *argv[]) {
     const char *predict_col = NULL;
     double threshold = 0.0;
     size_t min_samples = 0;
+    MHASH_INDEX_UINT categorical_dimensions = 10;
 
     // Parse CLI args
+    int in_comments = 0;
     for (int i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], "--label") == 0 && i + 1 < argc)
+        if(argv[i][0] == 0)
+            continue;
+        if(in_comments) {
+            if(argv[i][0]=='-') 
+                in_comments = 0;
+            else 
+                continue;
+        }
+        if(argv[i][0]=='#') 
+            in_comments = 1;
+        else if (strcmp(argv[i], "--label") == 0 && i + 1 < argc)
             label_col = argv[++i];
         else if (strcmp(argv[i], "--predict") == 0 && i + 1 < argc)
             predict_col = argv[++i];
@@ -76,10 +97,83 @@ int main(int argc, char *argv[]) {
             threshold = atof(argv[++i]);
         else if (strcmp(argv[i], "--members") == 0 && i + 1 < argc)
             min_samples = (unsigned long)atol(argv[++i]);
+        else if (strcmp(argv[i], "--numbers") == 0 && i + 1 < argc)
+            categorical_dimensions = (unsigned long)atol(argv[++i]);
         else if (argv[i][0] != '-')
             filepath = argv[i];
     }
 
+    // --- .fb argument file support ---
+    if (filepath && strlen(filepath) > 3 && strcmp(filepath + strlen(filepath) - 3, ".fb") == 0) {
+        FILE *fb = fopen(filepath, "r");
+        if (!fb) {
+            fprintf(stderr, "Error: could not open argument file '%s'\n", filepath);
+            return 1;
+        }
+
+        char line[MAX_LINE_SIZE];
+        int in_comments_fb = 0;
+
+        while (fgets(line, sizeof(line), fb)) {
+            // strip inline comments
+            char *hash = strchr(line, '#');
+            if (hash) *hash = '\0';
+
+            // trim leading/trailing spaces
+            char *start = line;
+            while (isspace(*start)) start++;
+            char *end = start + strlen(start);
+            while (end > start && isspace(*(end - 1))) *--end = '\0';
+            if (*start == '\0')
+                continue;
+
+            // parse the line argument by argument
+            char *arg = strtok(start, " \t\r\n");
+            while (arg) {
+                if (arg[0] == 0) {
+                    arg = strtok(NULL, " \t\r\n");
+                    continue;
+                }
+
+                if (in_comments_fb) {
+                    if (arg[0] == '-')
+                        in_comments_fb = 0;
+                    else {
+                        arg = strtok(NULL, " \t\r\n");
+                        continue;
+                    }
+                }
+
+                if (arg[0] == '#') {
+                    in_comments_fb = 1;
+                } else if (strcmp(arg, "--label") == 0) {
+                    char *next = strtok(NULL, " \t\r\n");
+                    if (next) label_col = xstrdup(next);
+                } else if (strcmp(arg, "--predict") == 0) {
+                    char *next = strtok(NULL, " \t\r\n");
+                    if (next) predict_col = xstrdup(next);
+                } else if (strcmp(arg, "--threshold") == 0) {
+                    char *next = strtok(NULL, " \t\r\n");
+                    if (next) threshold = atof(next);
+                } else if (strcmp(arg, "--members") == 0) {
+                    char *next = strtok(NULL, " \t\r\n");
+                    if (next) min_samples = (unsigned long)atol(next);
+                } else if (strcmp(arg, "--numbers") == 0) {
+                    char *next = strtok(NULL, " \t\r\n");
+                    if (next) categorical_dimensions = (unsigned long)atol(next);
+                } else if (arg[0] != '-') {
+                    filepath = xstrdup(arg);
+                }
+
+                arg = strtok(NULL, " \t\r\n");
+            }
+        }
+        fclose(fb);
+        if (!filepath) {
+            fprintf(stderr, "Error: no data file specified in .fb file\n");
+            return 1;
+        }
+    }
     if (!filepath) {
         fprintf(stderr, "Error: no input file provided.\n");
         return 1;
@@ -87,7 +181,7 @@ int main(int argc, char *argv[]) {
 
     FILE *f = fopen(filepath, "r");
     if (!f) {
-        fprintf(stderr, "Error opening file\n");
+        fprintf(stderr, "Error opening file: %s\n", filepath);
         return 1;
     }
 
@@ -217,12 +311,12 @@ int main(int argc, char *argv[]) {
                     }
                     //printf("Initialized column %s with first dimension %s\n", col_names[current_col], columns[current_col].dimension_names[0]);
                 }
+                line[col_end] = '\0'; // we will never go back
                 int is_number = isdigit(line[col_start]) || line[col_start]=='-' || line[col_start]=='+';
-                if (is_number) {
+                if (is_number && columns[current_col].num_dimensions >= categorical_dimensions) {
                     columns[current_col].active_dim = 0; // numeric: single global bucket
                 } 
                 else {
-                    line[col_end] = '\0'; // we will never go back
                     MHASH_UINT pos = mhash_entry_pos(&columns[current_col].map, &line[col_start]);
                     MHASH_INDEX_UINT dim_idx = columns[current_col].map.table[pos];
                     int match = 0;
@@ -240,10 +334,11 @@ int main(int argc, char *argv[]) {
                         columns[current_col].dimension_names[old][col_end-col_start] = '\0';
                         columns[current_col].stats = realloc(columns[current_col].stats, sizeof(struct Stats) * columns[current_col].num_dimensions);
                         memset(&columns[current_col].stats[old], 0, sizeof(struct Stats));
-                        size_t sz = columns[current_col].num_dimensions * columns[current_col].num_dimensions + columns[current_col].num_dimensions * 2 + 1;
-                        if (sz > 128 * columns[current_col].num_dimensions)
-                            sz = 128 * columns[current_col].num_dimensions;
-                        MHASH_INDEX_UINT *new_table = malloc(sizeof(MHASH_INDEX_UINT) * sz);
+                        size_t close_dim = (columns[current_col].num_dimensions/4)*4+4; // reduce the number of reallocs by /4
+                        size_t sz = close_dim * close_dim + close_dim * 2 + 1;
+                        MHASH_INDEX_UINT *new_table = columns[current_col].map.table;
+                        if(sz!=columns[current_col].map.table_size)
+                            new_table = realloc(columns[current_col].map.table, sizeof(MHASH_INDEX_UINT) * sz);
                         if (mhash_init(&columns[current_col].map,
                                     new_table,
                                     sz,

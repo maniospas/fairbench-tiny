@@ -5,5 +5,7 @@ build
 *.exe
 build/
 fbt
+examples/adult.csv
+examples/credit.csv
 examples/bank.csv
 old/

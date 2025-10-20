@@ -26,6 +26,15 @@ create the executable `build/fbt`. Use the *fbt* executable like so:
 - --threshold &lt;value> Highlight values below this fairness threshold in red, and above 1-threshold in green (default: 0.0).
 - --members &lt;min_count> Minimum number of samples required for a group to be included in the report. Groups with fewer members are ignored.
 
+You can also pass as argument a configuration *.fb* file like the ones in the examples. 
+This can contain line comments starting with `#` after setting the dataset file in the first line.
+Run those files like so (you can still provide arguments externally, but these are overwritten by
+file-specific options):
+
+```bash
+./fbt examples/test.fb
+```
+
 
 ## 📘 Expected Input
 
