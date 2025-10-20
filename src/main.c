@@ -235,7 +235,9 @@ int main(int argc, char *argv[]) {
                     if (!match) {
                         size_t old = columns[current_col].num_dimensions++;
                         columns[current_col].dimension_names = realloc(columns[current_col].dimension_names, sizeof(char*) * columns[current_col].num_dimensions);
-                        columns[current_col].dimension_names[old] = strndup(&line[col_start], col_end - col_start);
+                        columns[current_col].dimension_names[old] = malloc(col_end - col_start + 1);
+                        memcpy(columns[current_col].dimension_names[old], &line[col_start], col_end - col_start);
+                        columns[current_col].dimension_names[old][col_end-col_start] = '\0';
                         columns[current_col].stats = realloc(columns[current_col].stats, sizeof(struct Stats) * columns[current_col].num_dimensions);
                         memset(&columns[current_col].stats[old], 0, sizeof(struct Stats));
                         size_t sz = columns[current_col].num_dimensions * columns[current_col].num_dimensions + columns[current_col].num_dimensions * 2 + 1;
@@ -349,10 +351,10 @@ int main(int argc, char *argv[]) {
     double tnr_wmean = tnr_wsum ? tnr_wsumv / tnr_wsum : 0.0;
     double pr_wmean  = pr_wsum  ? pr_wsumv  / pr_wsum  : 0.0;
 
-    double acc_diff_fair = (acc_min > 0.0) ? 1.0 - (acc_max / acc_min) : 0.0;
-    double tpr_diff_fair = (tpr_min > 0.0) ? 1.0 - (tpr_max / tpr_min) : 0.0;
-    double tnr_diff_fair = (tnr_min > 0.0) ? 1.0 - (tnr_max / tnr_min) : 0.0;
-    double pr_diff_fair  = (pr_min  > 0.0) ? 1.0 - (pr_max  / pr_min)  : 0.0;
+    double acc_diff_fair = (acc_min > 0.0) ? (acc_min / acc_max) : 0.0;
+    double tpr_diff_fair = (tpr_min > 0.0) ? (tpr_min / tpr_max) : 0.0;
+    double tnr_diff_fair = (tnr_min > 0.0) ? (tnr_min / tnr_max) : 0.0;
+    double pr_diff_fair  = (pr_min  > 0.0) ? (pr_min  / pr_max)  : 0.0;
 
     double acc_abs_fair = 1.0 - (acc_max - acc_min);
     double tpr_abs_fair = 1.0 - (tpr_max - tpr_min);
