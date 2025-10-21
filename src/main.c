@@ -7,6 +7,11 @@
 #include <time.h>
 
 
+static const char* RESET  = "\033[0m";
+static const char* RED    = "\033[31m";
+static const char* GREEN  = "\033[32m";
+
+
 #ifdef _WIN32
   #include <windows.h>
   #include <io.h>        // for _fileno
@@ -39,7 +44,7 @@ static void poll_for_data(FILE *f) {
 int main(int argc, char *argv[]) {
     if (argc < 2) {
         fprintf(stderr, "Usage: %s file.csv [--label colname] [--predict colname] [--threshold value]\n", argv[0]);
-        return 1;
+        return 2;
     }
 
     const char *filepath = NULL;
@@ -91,7 +96,7 @@ int main(int argc, char *argv[]) {
         FILE *fb = fopen(filepath, "r");
         if (!fb) {
             fprintf(stderr, "Error: could not open argument file '%s'\n", filepath);
-            return 1;
+            return 2;
         }
         filepath = NULL;
 
@@ -135,7 +140,7 @@ int main(int argc, char *argv[]) {
                     current_config++;
                     if (current_config >= MAX_COLS) {
                         fprintf(stderr, "Error: too many column configs (> %d)\n", MAX_COLS);
-                        return 1;
+                        return 2;
                     }
                     memset(&configs[current_config], 0, sizeof(struct Config));
                     configs[current_config].name = xstrdup(arg + 1);
@@ -147,7 +152,7 @@ int main(int argc, char *argv[]) {
                 if(!strcmp(arg, "--label")) {
                     if (current_config != -1) {
                         fprintf(stderr, "Error: can only set --label before setting a @column\n");
-                        return 1;
+                        return 2;
                     }
                     char *next = strtok(NULL, " \t\r\n");
                     if (next)
@@ -156,7 +161,7 @@ int main(int argc, char *argv[]) {
                 else if(!strcmp(arg, "--predict")) {
                     if (current_config != -1) {
                         fprintf(stderr, "Error: can only set --predict before setting a @column\n");
-                        return 1;
+                        return 2;
                     }
                     char *next = strtok(NULL, " \t\r\n");
                     if (next)
@@ -176,7 +181,7 @@ int main(int argc, char *argv[]) {
                     char *next = strtok(NULL, " \t\r\n");
                     if (current_config != -1) {
                         fprintf(stderr, "Error: can only set --stream before setting a @column\n");
-                        return 1;
+                        return 2;
                     }
                     if (next)
                         stream_interval = (double)atof(next);
@@ -185,7 +190,7 @@ int main(int argc, char *argv[]) {
                     char *next = strtok(NULL, " \t\r\n");
                     if (current_config != -1) {
                         fprintf(stderr, "Error: can only set --forget before setting a @column\n");
-                        return 1;
+                        return 2;
                     }
                     if (next)
                         forget = (double)atof(next);
@@ -194,7 +199,7 @@ int main(int argc, char *argv[]) {
                     char *next = strtok(NULL, " \t\r\n");
                     if (current_config != -1) {
                         fprintf(stderr, "Error: can only set --numbers before setting a @column\n");
-                        return 1;
+                        return 2;
                     }
                     if(next) 
                         categorical_dimensions = (unsigned long)atol(next);
@@ -202,7 +207,7 @@ int main(int argc, char *argv[]) {
                 else if(!strcmp(arg, "--numeric")) {
                     if (current_config == -1) {
                         fprintf(stderr, "Error: can only declare --numeric after setting a @column\n");
-                        return 1;
+                        return 2;
                     }
                     configs[current_config].status = CONFIG_STATUS_NUMERIC;
                 }
@@ -210,7 +215,7 @@ int main(int argc, char *argv[]) {
                     char *next = strtok(NULL, " \t\r\n");
                     if (current_config == -1) {
                         fprintf(stderr, "Error: can only set --binary after setting a @column\n");
-                        return 1;
+                        return 2;
                     }
                     if (next) {
                         configs[current_config].status = CONFIG_STATUS_BINARY;
@@ -220,14 +225,14 @@ int main(int argc, char *argv[]) {
                 else if(!strcmp(arg, "--skip")) {
                     if (current_config == -1) {
                         fprintf(stderr, "Error: can only --skip after setting a @column\n");
-                        return 1;
+                        return 2;
                     }
                     configs[current_config].status = CONFIG_STATUS_SKIP;
                 } 
                 else if(!strcmp(arg, "--members")) {
                     if (current_config != -1) {
                         fprintf(stderr, "Error: can only set --numbers before setting a @column\n");
-                        return 1;
+                        return 2;
                     }
                     char *next = strtok(NULL, " \t\r\n");
                     if(next) min_samples = (unsigned long)atol(next);
@@ -235,7 +240,7 @@ int main(int argc, char *argv[]) {
                 else if(arg[0] != '-' && arg[0] != 0) {
                     if (current_config != -1) {
                         fprintf(stderr, "Error: can only set a file path before setting a @column\n");
-                        return 1;
+                        return 2;
                     }
                     filepath = xstrdup(arg);
                 }
@@ -246,13 +251,13 @@ int main(int argc, char *argv[]) {
         fclose(fb);
         if (!filepath && !stream_interval) {
             fprintf(stderr, "Error: no data file or --stream specified in .fb script\n");
-            return 1;
+            return 2;
         }
     }
 
     if (!filepath && !stream_interval) {
         fprintf(stderr, "Error: no input file or --stream specification provided.\n");
-        return 1;
+        return 2;
     }
 
     FILE *f = NULL;
@@ -260,14 +265,14 @@ int main(int argc, char *argv[]) {
         f = fopen(filepath, "r");
         if (!f) {
             fprintf(stderr, "Error opening file: %s\n", filepath);
-            return 1;
+            return 2;
         }
     }
     else {
         f = stdin;
         if (!f) {
             fprintf(stderr, "Error getting stdin\n");
-            return 1;
+            return 2;
         }
     }
 
@@ -289,7 +294,7 @@ int main(int argc, char *argv[]) {
     // Parse header
     if (!fgets(line, sizeof(line), f)) {
         fprintf(stderr, "Empty header line\n");
-        return 1;
+        return 2;
     }
 
     char delimiter = 0;
@@ -297,14 +302,14 @@ int main(int argc, char *argv[]) {
         char c = line[i];
         if (c == '\0') {
             fprintf(stderr, "Header line too large\n");
-            return 1;
+            return 2;
         }
         if (c == '\r' || c == ' ' || c=='\'' || c=='"') continue;
         if (c == '\n') break;
         if (is_delimiter(c)) {
             if (delimiter && delimiter != c) {
                 fprintf(stderr, "Header has multiple delimiters\n");
-                return 1;
+                return 2;
             }
             delimiter = c;
             col_names[col_count][col_pos] = 0;
@@ -312,7 +317,7 @@ int main(int argc, char *argv[]) {
             col_pos = 0;
             if(col_count>=MAX_COLS) {
                 fprintf(stderr, "Too many columns in header\n");
-                return 1;
+                return 2;
             }
         } 
         else 
@@ -332,7 +337,7 @@ int main(int argc, char *argv[]) {
     MHash map;
     if (mhash_init(&map, map_table, map_table_size, (const void **)col_ptrs, col_count, mhash_str_prefix)) {
         fprintf(stderr, "Error: too many columns in header\n");
-        return 1;
+        return 2;
     }
 
     // Resolve label/predict columns
@@ -340,11 +345,11 @@ int main(int argc, char *argv[]) {
     predict_index = mhash_entry(&map, predict_col ? predict_col : "predict");
     if (label_index == MHASH_EMPTY_SLOT) {
         fprintf(stderr, "Error: could not find label column\n");
-        return 1;
+        return 2;
     }
     if (predict_index == MHASH_EMPTY_SLOT) {
         fprintf(stderr, "Error: could not find predict column\n");
-        return 1;
+        return 2;
     }
 
     // column info (most of it will be useful later but preallocated anyway
@@ -360,26 +365,27 @@ int main(int argc, char *argv[]) {
         MHASH_INDEX_UINT idx = map.table[pos];
         if(idx == MHASH_EMPTY_SLOT) {
             fprintf(stderr, "Error: configured column '%s' not found in header\n", configs[i].name);
-            return 1;
+            return 2;
         }
         if(strcmp(col_ptrs[idx], configs[i].name)) {
             fprintf(stderr, "Error: configured column '%s' not found in header\n", configs[i].name);
-            return 1;
+            return 2;
         }
         if(columns[idx].config) {
             fprintf(stderr, "Error: configured column '%s' multiple times\n", configs[i].name);
-            return 1;
+            return 2;
         }
         columns[idx].config = &configs[i];
     }
 
     // Process data
-    long int start_time = time(NULL);
-    long int last_report_print = start_time-stream_interval-1;
+    time_t start_time = time(NULL);
+    if(stream_interval<0) stream_interval = 0;
+    time_t last_report_print = start_time-(long int)stream_interval-1;
     while (1) {
         if (!fgets(line, sizeof(line), f)) {
             if(filepath) break;  // normal batch exit
-            long int now = time(NULL);
+            time_t now = time(NULL);
             if(difftime(now, last_report_print)>=stream_interval) {
                 last_report_print = now;
                 printf("\033[2J\033[H\n\n%s----- Live report (%.0f sec) -----%s\n", GREEN, difftime(now, start_time), RESET);
@@ -424,11 +430,11 @@ int main(int argc, char *argv[]) {
                 // process column
                 if (col_end <= col_start) {
                     fprintf(stderr, "Error: empty_column\n");
-                    return 1;
+                    return 2;
                 }
                 if(col_end-col_start>=MAX_STR_LEN-1) {
                     fprintf(stderr, "Error: column value too large\n");
-                    return 1;
+                    return 2;
                 }
                 line[col_end] = '\0'; // we will never go back
                 // initialize mhash for the column
@@ -449,7 +455,7 @@ int main(int argc, char *argv[]) {
                         mhash_str_prefix
                     )) {
                         fprintf(stderr, "Error: too many categorical values during column %s\n", col_names[current_col]);
-                        return 1;
+                        return 2;
                     }
                     //printf("Initialized column %s with first dimension %s\n", col_names[current_col], columns[current_col].dimension_names[0]);
                 }
@@ -502,7 +508,7 @@ int main(int argc, char *argv[]) {
                                     columns[current_col].num_dimensions,
                                     mhash_str_prefix)) {
                             fprintf(stderr, "Error: too many categorical values during column %s\n", col_names[current_col]);
-                            return 1;
+                            return 2;
                         }
                         columns[current_col].active_dim = old;
                     }
@@ -519,17 +525,29 @@ int main(int argc, char *argv[]) {
 
         double y_true = values[label_index];
         double y_pred = values[predict_index];
-        for (size_t i = 0; i < col_count; ++i) {
-            struct Stats *st = &columns[i].stats[columns[i].active_dim];
-            st->tp += y_true * y_pred;
-            st->tn += (1.0 - y_true) * (1.0 - y_pred);
-            st->positives += y_pred;
-            st->labels += y_true;
-            st->count += 1.0;
+        if(forget) {
+            for (size_t i = 0; i < col_count; ++i) {
+                struct Stats *st = &columns[i].stats[columns[i].active_dim];
+                st->tp = st->tp*(1-forget) + forget * y_true * y_pred;
+                st->tn = st->tn*(1-forget) + forget * (1.0 - y_true) * (1.0 - y_pred);
+                st->positives = (1-forget)*st->positives + forget*y_pred;
+                st->labels = st->labels*(1-forget) + forget*y_true;
+                st->count = (1-forget)*st->count+forget;
+            }
+        }
+        else {
+            for (size_t i = 0; i < col_count; ++i) {
+                struct Stats *st = &columns[i].stats[columns[i].active_dim];
+                st->tp += y_true * y_pred;
+                st->tn += (1.0 - y_true) * (1.0 - y_pred);
+                st->positives += y_pred;
+                st->labels += y_true;
+                st->count += 1.0;
+            }
         }
 
         if (stream_interval) {
-            long int now = time(NULL);
+            time_t now = time(NULL);
             if(difftime(now, last_report_print)>=stream_interval) {
                 last_report_print = now;
                 printf("\033[2J\033[H\n\n%s----- Live report (%.0f sec) -----%s\n", GREEN, difftime(now, start_time), RESET);
@@ -555,10 +573,10 @@ int main(int argc, char *argv[]) {
     fclose(f);
     if (total_rows == 0) {
         fprintf(stderr, "No data rows found (but headers were read)\n");
-        return 1;
+        return 2;
     }
 
-    print_report(
+    return print_report(
         columns,
         col_ptrs,
         col_count, 
@@ -568,6 +586,4 @@ int main(int argc, char *argv[]) {
         total_rows,
         threshold
     );
-    return 0;
-
 }

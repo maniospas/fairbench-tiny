@@ -5,13 +5,6 @@
 #include "mhash/mhash.h"
 #include "mhash/mhash_str.h"
 
-#define RESET   "\033[0m"
-#define RED     "\033[31m"
-#define GREEN   "\033[32m"
-#define YELLOW  "\033[33m"
-#define CYAN    "\033[36m"
-#define BOLD    "\033[1m"
-
 #define MAX_COLS 64
 #define MAX_STR_LEN 128
 #define MAX_LINE_SIZE 4096
@@ -48,7 +41,7 @@ struct Column {
     struct Config *config;
 };
 
-void print_report(
+int print_report(
     const struct Column *columns,
     const char **col_names,
     size_t col_count, 

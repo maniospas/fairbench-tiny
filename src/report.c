@@ -1,5 +1,12 @@
 #include "data.h"
 
+static const char* RESET  = "\033[0m";
+static const char* RED    = "\033[31m";
+static const char* GREEN  = "\033[32m";
+static const char* CYAN   = "\033[36m";
+static const char* BOLD   = "\033[1m";
+#define CHECK_COLS if(acc_col==RED || tpr_col==RED || tnr_col==RED || pr_col==RED) return_code=1;
+
 static const char *color_for(double v, double threshold) {
     if (v < threshold)
         return RED;
@@ -8,7 +15,7 @@ static const char *color_for(double v, double threshold) {
     return RESET;
 }
 
-void print_report(
+int print_report(
     const struct Column *columns,
     const char **col_names,
     size_t col_count, 
@@ -18,6 +25,7 @@ void print_report(
     size_t total_rows,
     double threshold
 ) {
+    int return_code = 0;
     printf("\n%s%-30s%s %sacc%s     %stpr%s     %stnr%s     %spr%s\n",
            CYAN, "Groups", RESET, BOLD, RESET, BOLD, RESET, BOLD, RESET, BOLD, RESET);
 
@@ -109,6 +117,7 @@ void print_report(
     tpr_col = color_for(tpr_min, threshold);
     tnr_col = color_for(tnr_min, threshold);
     pr_col  = color_for(pr_min, threshold);
+    CHECK_COLS
     printf("%-30s %s%.3f%s  %s%.3f%s  %s%.3f%s  %s%.3f%s\n",
            "min",
            acc_col, acc_min, RESET,
@@ -121,6 +130,7 @@ void print_report(
     tpr_col = color_for(tpr_wmean, threshold);
     tnr_col = color_for(tnr_wmean, threshold);
     pr_col  = color_for(pr_wmean, threshold);
+    CHECK_COLS
     printf("%-30s %s%.3f%s  %s%.3f%s  %s%.3f%s  %s%.3f%s\n",
            "weighted mean",
            acc_col, acc_wmean, RESET,
@@ -133,6 +143,7 @@ void print_report(
     tpr_col = color_for(tpr_diff_fair, threshold);
     tnr_col = color_for(tnr_diff_fair, threshold);
     pr_col  = color_for(pr_diff_fair, threshold);
+    CHECK_COLS
     printf("%-30s %s%.3f%s  %s%.3f%s  %s%.3f%s  %s%.3f%s\n",
            "differentially fair",
            acc_col, acc_diff_fair, RESET,
@@ -145,6 +156,7 @@ void print_report(
     tpr_col = color_for(tpr_abs_fair, threshold);
     tnr_col = color_for(tnr_abs_fair, threshold);
     pr_col  = color_for(pr_abs_fair, threshold);
+    CHECK_COLS
     printf("%-30s %s%.3f%s  %s%.3f%s  %s%.3f%s  %s%.3f%s\n",
            "absolutely fair",
            acc_col, acc_abs_fair, RESET,
@@ -155,4 +167,5 @@ void print_report(
 
     printf("\nSamples: %lu\n", total_rows);
     printf("Threshold: %.2f\n", threshold);
+    return return_code;
 }

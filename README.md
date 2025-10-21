@@ -13,6 +13,16 @@ It provides a lightweight alternative to the [**FairBench**](https://github.com/
 - Expressive arguments that can be read from *.fb* scripts to revisit complicated analysis.
 - Streaming interface.
 
+**Intentional limitations** 
+
+When the assumptions below are violated, *fbt* will exit with error code 2. All can be addressed given adequate interest, but they are chosen for fast implementation that addresses many realistic scenarios.
+
+- Each cell must comprise up to 127 characters. This is a constant in *src/data.h* that you can change and recompile.
+- File lines are assumed to span up to 4kB. This is also a constant in *src/data.h*.
+- Up to 64 cols can be analyzed. This is also a constant in *src/data.h*.
+- The employed hashing algorithm for categorical column values may consume much more memory than expected (still in the order of magnitude of some kBs at most). This algorithm is chosen for the sake of speed, so there is a soft (and unknown) upper limit
+on the number of different categorical attribute values that can occur - ideally these should be less than 80.
+
 ## ⚡ Quickstart
 
 Download the *./fbt* executable from the project's 
@@ -28,11 +38,12 @@ Run the executable:
 - data.csv Path to the CSV/TSV data file to analyze. If no path is provided, *fbt* polls stdin every 100ms to provide live updates.
 - --label &lt;colname> Name of the column containing true labels (default: *label*).
 - --predict &lt;colname> Name of the column containing predicted labels (default: *predict*).
-- --threshold &lt;value> Highlight values below this fairness threshold in red, and above 1-threshold in green (default: 0.0).
+- --threshold &lt;value> Highlight values below this fairness threshold in red, and above 1-threshold in green (default: 0.0). Violated thresholds make the final report return with exit code 1.
 - --numbers &lt;value> Declares that numerical data columns with less than the number of distinct values should be treated as categorical. For example, you might have values 1,2,3 for marital status, where the identifiers are explained elsewhere.
 - --members &lt;min_count> Minimum number of samples required for a group to be included in the fairness report. Groups with fewer members are ignored.
 - --stream &lt;rows> Stream an update after every fixed number of seconds. If this is set and no path is provided, you get live
 updates from *stdin*.
+- --forget &lt;rate> Sets a forget rate in the range `(0,1]` that degrades the importance of earlier samples. Its value should be small (e.g., 0.01 or much smaller). Particularly useful when streaming over time.
 - @&lt;NAME> Switches to declaring column-specific characteristics. These are presented next.
 - --numerical Indicates that the column holds numerical data (this is prioritized over the globally set --numbers).
 - --skip Ignores the column during parsing.
@@ -42,10 +53,10 @@ updates from *stdin*.
 You might have complex arguments in your run that would be a shame to lose.
 In those cases, pass as the only argument a configuration *.fb* file like the ones in *examples/*. 
 Scripts can be accompanied by command line arguments, but this behavior is not 
-well-defined right now in case of conflicts - usually you will see an error.
+well-defined right now in case of conflicts - you will either see an error or the command line
+arguments are overwritten, and this behavior will likely change in the future.
 
-Run script files like below (you can still provide arguments externally, but these are overwritten by
-file-specific options):
+Run script files like below:
 
 ```bash
 ./fbt examples/credit.fb
@@ -69,10 +80,10 @@ The outcome reports only on the columns of interest.
 
 ## 📘 Expected input
 
-The first line must contain column headers (group names, *label*, and *predict*). Columns may be separated by **comma `,`**, **tab `\t`**, or **semicolon `;`** — the first delimiter encountered is used. **Whitespace** or quotations are ignored everywhere.  
+The first data line must contain column headers (group names, *label*, and *predict*). Columns may be separated by **comma `,`**, **tab `\t`**, or **semicolon `;`** — the first of those delimiters that is encountered is used from thereon.
+**Whitespace** or quotations `"` are ignored everywhere.  
 
-All rows must have the same number of columns as the header, and must contain categorical or numerical data values at every column. For predictions and labels, if no column scpecifications are provided, values are considered binary identified by whether column entries start with
-*y*, *Y*, or *1*.
+All rows must have the same number of columns as the header, and must contain categorical or numerical data values at every column. For predictions and labels, if no column scpecifications are provided, values are considered binary identified by whether column entries start with *y*, *Y*, or *1*.
 
 ```csv
 gender,region,label,predict
