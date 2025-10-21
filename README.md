@@ -129,8 +129,8 @@ python3 examples/streamer.py | ./fbt --stream 1
 ## 🧪 Benchmarks
 
 Benchmarks are lies. But they are useful lies. So here is a comparison using the *perf* tool on a Linux machine
-to repeat a credit dataset analysis 10 times for consistency. Our tasks consists of computing 
-absolute positive rate differences between two sexes on the *Credit* dataset under AIF360 (a very popular fairness analysis library), FairBench, and FairBench-tiny. 
+to repeat a credit dataset analysis 10 times for consistency. Approximate ranges of consumed resources are reported for the task of computing 
+absolute positive rate differences between two sexes on the *Credit* dataset. This is done using AIF360 (a very popular fairness analysis library), FairBench, and FairBench-tiny. 
 
 Honestly, there is not much to expect from a comparison of an interpreted vs a compiled framework; the latter will always dominate. But below is a validation of this common engineering truth anyway. Python 3.13.1 is used everywhere.
 
@@ -140,9 +140,9 @@ Honestly, there is not much to expect from a comparison of an interpreted vs a c
 | **Pandas + FairBench** | 0.35–0.36 | 12–13 | <98 | 
 | **FairBench-tiny** | **0.01–0.03** | **0.4–0.8** | **<2** | 
 
-Python libraries cannot be decoupled from their interpreter in this use case of analyzing a dataset (and potentially predictions) stored in disk. So the above numbers include interpreter startup and dataset loading overheads that consume 0.33–0.36 sec and 12–14 Joules. If these are ignored FairBench's internal NumPy usage (which wraps compiled code) ends up also being lightweight.
+Python libraries cannot be decoupled from their interpreter in this use case of analyzing a dataset (and potentially predictions) stored in disk. So the above numbers include interpreter startup and dataset loading overheads that consume 0.33–0.36 sec and 12–14 Joules. If these are ignored, FairBench's internal NumPy usage (which wraps compiled code) ends up also being lightweight.
 
-Taking these quantities with a grain of salt in that they are pretty normal when comparing Python vs C implementations, FairBench-tiny achieves:
+While acknowledging that huge gains are pretty normal when comparing Python vs C implementations, FairBench-tiny achieves:
 
 - 17+ lower energy consumption compared to the other frameworks.
 - 30–80x faster execution.  
