@@ -57,7 +57,7 @@ int print_report(
             double acc = count ? (tp + tn) / count : 0.0;
             double tpr = label_pos ? tp / label_pos : 0.0;
             double tnr = label_neg ? tn / label_neg : 0.0;
-            double pr  = pred_pos ? tp / pred_pos : 0.0;
+            double pr  = pred_pos ? pred_pos / count : 0.0;
             if (acc < acc_min) acc_min = acc;
             if (acc > acc_max) acc_max = acc;
             acc_wsum += count;

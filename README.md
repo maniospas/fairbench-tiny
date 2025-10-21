@@ -85,7 +85,7 @@ The outcome reports only on the columns of interest.
 The first data line must contain column headers (group names, *label*, and *predict*). Columns may be separated by **comma `,`**, **tab `\t`**, or **semicolon `;`** — the first of those delimiters that is encountered is used from thereon.
 **Whitespace** or quotations `"` are ignored everywhere.  
 
-All rows must have the same number of columns as the header, and must contain categorical or numerical data values at every column. For predictions and labels, if no column scpecifications are provided, values are considered binary identified by whether column entries start with *y*, *Y*, or *1*.
+All rows must have the same number of columns as the header, and must contain categorical or numerical data values at every column. For predictions and labels, if no column specifications are provided, values are considered binary identified by whether column entries start with *y*, *Y*, or *1*.
 
 ```csv
 gender,region,label,predict
