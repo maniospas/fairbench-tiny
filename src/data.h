@@ -13,6 +13,7 @@
 #define CONFIG_STATUS_SKIP 1       // skips the column
 #define CONFIG_STATUS_NUMERIC 2    // custom number of categories (uses Config.categories)
 #define CONFIG_STATUS_BINARY 3     // custom number of categories (uses Config.binary)
+#define CONFIG_STATUS_RANGE 4      // the first char of categories falls in a char range
 
 struct Config {
     char* name;
@@ -21,6 +22,7 @@ struct Config {
     union {
         int categories;
         char* binary;
+        char range[2];
     };
 };
 
@@ -49,7 +51,9 @@ int print_report(
     MHASH_INDEX_UINT label_index,
     size_t min_samples,
     size_t total_rows,
-    double threshold
+    double threshold,
+    int show_bars,
+    int show_details
 );
 
 

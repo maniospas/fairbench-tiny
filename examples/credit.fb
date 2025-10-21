@@ -7,6 +7,10 @@ examples/credit.csv
   --threshold 0.1        # Assessments <0.1 in red, those >0.9 in green
   --numbers 10           # Numeric columns become categorical if <10 categories
 
+@SEX       --char 12
+@EDUCATION --char 13
+@MARRIAGE  --char 13
+
 @class     --binary 1
 @AGE       --numeric --skip
 @LIMIT_BAL --numeric --skip

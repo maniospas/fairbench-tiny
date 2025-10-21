@@ -13,7 +13,7 @@ all: release
 # Release build
 release: $(SRC)
 	@mkdir -p $(BUILD_DIR)
-	$(CXX) $(CXXFLAGS) -O3 $(SRC) -o $(BUILD_DIR)/$(TARGET)
+	$(CXX) $(CXXFLAGS) -O3 $(SRC) -o $(BUILD_DIR)/$(TARGET) -s -flto -Wl,--gc-sections -fdata-sections -ffunction-sections
 
 # Debug build (with sanitizers)
 debug: $(SRC)

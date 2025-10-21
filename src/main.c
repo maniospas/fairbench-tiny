@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <unistd.h>
 #include "data.h"
 #include <time.h>
 
@@ -43,15 +42,17 @@ static void poll_for_data(FILE *f) {
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
-        fprintf(stderr, "Usage: %s file.csv [--label colname] [--predict colname] [--threshold value]\n", argv[0]);
-        return 2;
+        fprintf(stderr, "Usage: %s <file.csv|script.fb> [--label colname] [--predict colname] [--threshold value] [--stream refresh_seconds] [--forget rate] [--bars] [--details]\n", argv[0]);
+        return 0;
     }
 
     const char *filepath = NULL;
     const char *label_col = NULL;
     const char *predict_col = NULL;
+    int show_bars = 0;
+    int show_details = 0;
     double threshold = 0.0;
-    size_t min_samples = 0;
+    size_t min_samples = 1;
     MHASH_INDEX_UINT categorical_dimensions = 10;
 
     struct Config configs[MAX_COLS];
@@ -63,7 +64,7 @@ int main(int argc, char *argv[]) {
     // Parse CLI args
     int in_comments = 0;
     for (int i = 1; i < argc; ++i) {
-        if(argv[i][0] == 0)
+        if(argv[i][0]==0)
             continue;
         if(in_comments) {
             if(argv[i][0]=='-') 
@@ -87,7 +88,11 @@ int main(int argc, char *argv[]) {
             stream_interval = (double)atof(argv[++i]);
         else if (strcmp(argv[i], "--forget") == 0 && i + 1 < argc) 
             forget = (double)atof(argv[++i]);
-        else if (argv[i][0] != '-')
+        else if (strcmp(argv[i], "--bars") == 0) 
+            show_bars = 1;
+        else if (strcmp(argv[i], "--details") == 0) 
+            show_details = 1;
+        else if (argv[i][0]!='-') 
             filepath = argv[i];
     }
 
@@ -134,7 +139,6 @@ int main(int argc, char *argv[]) {
                     arg = strtok(NULL, " \t\r\n");
                     continue;
                 }
-
                 // --- handle @column sections ---
                 if (arg[0] == '@') {
                     current_config++;
@@ -149,9 +153,23 @@ int main(int argc, char *argv[]) {
                     arg = strtok(NULL, " \t\r\n");
                     continue;
                 }
+                if(!strcmp(arg, "--bars")) {
+                    if (current_config != -1) {
+                        fprintf(stderr, "Error: can only set %s before a @column\n", arg);
+                        return 2;
+                    }
+                    show_bars = 1;
+                } 
+                if(!strcmp(arg, "--details")) {
+                    if (current_config != -1) {
+                        fprintf(stderr, "Error: can only set %s before a @column\n", arg);
+                        return 2;
+                    }
+                    show_details = 1;
+                } 
                 if(!strcmp(arg, "--label")) {
                     if (current_config != -1) {
-                        fprintf(stderr, "Error: can only set --label before setting a @column\n");
+                        fprintf(stderr, "Error: can only set %s before a @column\n", arg);
                         return 2;
                     }
                     char *next = strtok(NULL, " \t\r\n");
@@ -160,7 +178,7 @@ int main(int argc, char *argv[]) {
                 } 
                 else if(!strcmp(arg, "--predict")) {
                     if (current_config != -1) {
-                        fprintf(stderr, "Error: can only set --predict before setting a @column\n");
+                        fprintf(stderr, "Error: can only set %s before a @column\n", arg);
                         return 2;
                     }
                     char *next = strtok(NULL, " \t\r\n");
@@ -177,19 +195,19 @@ int main(int argc, char *argv[]) {
                             configs[current_config].threshold = val;
                     }
                 } 
-                else if (strcmp(arg, "--stream") == 0) {
+                else if (!strcmp(arg, "--stream")) {
                     char *next = strtok(NULL, " \t\r\n");
                     if (current_config != -1) {
-                        fprintf(stderr, "Error: can only set --stream before setting a @column\n");
+                        fprintf(stderr, "Error: can only set %s before a @column\n", arg);
                         return 2;
                     }
                     if (next)
                         stream_interval = (double)atof(next);
                 }
-                else if (strcmp(arg, "--forget") == 0) {
+                else if (!strcmp(arg, "--forget")) {
                     char *next = strtok(NULL, " \t\r\n");
                     if (current_config != -1) {
-                        fprintf(stderr, "Error: can only set --forget before setting a @column\n");
+                        fprintf(stderr, "Error: can only set %s before a @column\n", arg);
                         return 2;
                     }
                     if (next)
@@ -198,7 +216,7 @@ int main(int argc, char *argv[]) {
                 else if(!strcmp(arg, "--numbers")) {
                     char *next = strtok(NULL, " \t\r\n");
                     if (current_config != -1) {
-                        fprintf(stderr, "Error: can only set --numbers before setting a @column\n");
+                        fprintf(stderr, "Error: can only set %s before a @column\n", arg);
                         return 2;
                     }
                     if(next) 
@@ -206,7 +224,7 @@ int main(int argc, char *argv[]) {
                 } 
                 else if(!strcmp(arg, "--numeric")) {
                     if (current_config == -1) {
-                        fprintf(stderr, "Error: can only declare --numeric after setting a @column\n");
+                        fprintf(stderr, "Error: can only set %s after a @column\n", arg);
                         return 2;
                     }
                     configs[current_config].status = CONFIG_STATUS_NUMERIC;
@@ -214,7 +232,7 @@ int main(int argc, char *argv[]) {
                 else if(!strcmp(arg, "--binary")) {
                     char *next = strtok(NULL, " \t\r\n");
                     if (current_config == -1) {
-                        fprintf(stderr, "Error: can only set --binary after setting a @column\n");
+                        fprintf(stderr, "Error: can only set %s after a @column\n", arg);
                         return 2;
                     }
                     if (next) {
@@ -222,16 +240,32 @@ int main(int argc, char *argv[]) {
                         configs[current_config].binary = xstrdup(next);
                     }
                 } 
+                else if(!strcmp(arg, "--char")) {
+                    char *next = strtok(NULL, " \t\r\n");
+                    if (current_config == -1) {
+                        fprintf(stderr, "Error: can only set %s after a @column\n", arg);
+                        return 2;
+                    }
+                    if (next && next[0] && next[1] && !next[2]) {
+                        configs[current_config].status = CONFIG_STATUS_RANGE;
+                        configs[current_config].range[0] = next[0];
+                        configs[current_config].range[1] = next[1];
+                    }
+                    else {
+                        fprintf(stderr, "Error: %s requires exactly two characters\n", arg);
+                        return 2;
+                    }
+                }
                 else if(!strcmp(arg, "--skip")) {
                     if (current_config == -1) {
-                        fprintf(stderr, "Error: can only --skip after setting a @column\n");
+                        fprintf(stderr, "Error: can only set %s after a @column\n", arg);
                         return 2;
                     }
                     configs[current_config].status = CONFIG_STATUS_SKIP;
                 } 
                 else if(!strcmp(arg, "--members")) {
                     if (current_config != -1) {
-                        fprintf(stderr, "Error: can only set --numbers before setting a @column\n");
+                        fprintf(stderr, "Error: can only set %s before a @column\n", arg);
                         return 2;
                     }
                     char *next = strtok(NULL, " \t\r\n");
@@ -239,7 +273,7 @@ int main(int argc, char *argv[]) {
                 } 
                 else if(arg[0] != '-' && arg[0] != 0) {
                     if (current_config != -1) {
-                        fprintf(stderr, "Error: can only set a file path before setting a @column\n");
+                        fprintf(stderr, "Error: can only set %s after a @column\n", "a file path");
                         return 2;
                     }
                     filepath = xstrdup(arg);
@@ -376,6 +410,20 @@ int main(int argc, char *argv[]) {
             return 2;
         }
         columns[idx].config = &configs[i];
+
+        if (configs[i].status == CONFIG_STATUS_RANGE) {
+            char start = configs[i].range[0];
+            char end   = configs[i].range[1];
+            size_t range_len = (size_t)(end - start + 1);
+            if (range_len <= 0) {
+                fprintf(stderr, "Error: invalid --char range for column '%s'\n", configs[i].name);
+                return 2;
+            }
+            size_t num_dims = range_len + 1; // start..end (inclusive) + 1 for other
+            columns[idx].num_dimensions = num_dims;
+            columns[idx].stats = calloc(num_dims, sizeof(struct Stats));
+            columns[idx].dimension_names = NULL; // dimension names are explicitly known already
+        }
     }
 
     // Process data
@@ -403,7 +451,9 @@ int main(int argc, char *argv[]) {
                         label_index,
                         min_samples,
                         total_rows,
-                        threshold
+                        threshold,
+                        show_bars,
+                        show_details
                     );
             }
             clearerr(f);          // EOF reached, wait for more
@@ -438,6 +488,7 @@ int main(int argc, char *argv[]) {
                 }
                 line[col_end] = '\0'; // we will never go back
                 // initialize mhash for the column
+                int col_strategy = columns[current_col].config?columns[current_col].config->status:0;
                 if(columns[current_col].num_dimensions==0) {
                     size_t table_size = 1;
                     columns[current_col].dimension_names = malloc(sizeof(char**));
@@ -463,11 +514,17 @@ int main(int argc, char *argv[]) {
                 int has_been_processed = 0;
                 int is_number = isdigit(line[col_start]) || line[col_start]=='-' || line[col_start]=='+';
 
-                if(columns[current_col].config && columns[current_col].config->status) {
+                if(col_strategy) {
                     has_been_processed = 1;
-                    if(columns[current_col].config->status==CONFIG_STATUS_NUMERIC) 
+                    if(col_strategy==CONFIG_STATUS_RANGE) {
+                        char c = line[col_start];
+                        char range_start = columns[current_col].config->range[0];
+                        char range_end = columns[current_col].config->range[1];
+                        columns[current_col].active_dim = (c<range_start || c>range_end)?((MHASH_INDEX_UINT)(range_end-range_start+1)):((MHASH_INDEX_UINT)(c-range_start));
+                    }
+                    else if(col_strategy==CONFIG_STATUS_NUMERIC) 
                         values[current_col] = atof(&line[col_start]);
-                    else if(columns[current_col].config->status==CONFIG_STATUS_BINARY)
+                    else if(col_strategy==CONFIG_STATUS_BINARY)
                          values[current_col] = strcmp(&line[col_start], columns[current_col].config->binary)?0:1;
                 }
                 
@@ -565,7 +622,9 @@ int main(int argc, char *argv[]) {
                         label_index,
                         min_samples,
                         total_rows,
-                        threshold
+                        threshold,
+                        show_bars,
+                        show_details
                     );
             }
         }
@@ -584,6 +643,8 @@ int main(int argc, char *argv[]) {
         label_index,
         min_samples,
         total_rows,
-        threshold
+        threshold,
+        show_bars,
+        show_details
     );
 }

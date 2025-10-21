@@ -1,5 +1,6 @@
 examples/bank.csv  # Name of the file (cannot place comments before that)
---label y          # This is the true label column
---predict y        # This is the predicted label column
---threshold 0.1    # Assessments <0.1 in red, those >0.9 in green
---numbers 10       # If a numeric column has less than 10 numbers, it's treated as categorical
+  --label y          # This is the true label column
+  --predict y        # This is the predicted label column
+  --threshold 0.1    # Assessments <0.1 in red, those >0.9 in green
+  --numbers 10       # If a numeric column has less than 10 numbers, it's treated as categorical
+  --details          # Add details of column analysis
