@@ -45,7 +45,7 @@ Run the executable:
 - --predict &lt;colname> Name of the column containing predicted labels (default: *predict*).
 - --threshold &lt;value> Highlight values below this fairness threshold in red, and above 1-threshold in green (default: 0.0). Violated thresholds make the final report return with exit code 1.
 - --numbers &lt;value> Declares that numerical data columns with less than the number of distinct values should be treated as categorical. For example, you might have values 1,2,3 for marital status, where the identifiers are explained elsewhere.
-- --members &lt;value> Minimum number of samples required for a group to be included in the fairness report. Groups with fewer members are ignored. Default is 1. You can set this value to zero to also show groups that are not present in your data (for example, obtained from *.fb* scripts).
+- --members &lt;value> Minimum number of samples required for a group to be included in the fairness report. Groups with fewer members are ignored. Default is 1. You can set this value to zero to also show groups that are not present in your data (for example, explicitly or implicitly mentioned in *.fb* scripts).
 
 **Streaming args**
 
@@ -53,7 +53,7 @@ Run the executable:
 - --forget &lt;rate> Sets a forget rate in the range `(0,1]` that degrades the importance of earlier samples. Its value should be small (e.g., 0.01 or much smaller). Particularly useful when streaming over time.
 
 **Visual args**
-- --bars Shows values as bars.
+- --bars Shows values as bars instead.
 - --details Shows computation details - not only the summary.
 
 **Column args**
@@ -62,15 +62,15 @@ Run the executable:
 - --numerical Indicates that the column holds numerical data (this is prioritized over the globally set --numbers).
 - --skip Ignores the column during parsing.
 - --binary &lt;label> Sets the column as a binary categorical attribute with a given positive label.
-- --char &lt;from>&lt;to> Sets a categorical column that starts at at the first given ASCII character and ends at the second one. Cells can have more values, but it it assumed that they can only be 1-1 differentiated based on the first character. Characters not in the character range are set as a column called `other`. **This operation is the fastest option for processing categorical attributes.**
+- --char &lt;from>&lt;to> Sets a categorical column whose elements can be distinguished based on their first character. Provide a range of ASCII characters, starting from the first and ending at the second one (inclusive). Other values are grouped in a different category. For example, set `--char AD` for a column with possible entries *Apple,Banana,Durian,Watermelon*, where the range *AD* suffices to identify the first three options, and the other can be categorized into *other*. **This operation is the fastest option for processing categorical attributes.**
 
 <details> 
 <summary>More about --chars</summary>
 
-*There is no downside to this strategy other than discounting bytes after the first and require manual denotation.* It consumes less memory and is faster than other options, because it does skips memory indirection and expensive hash computations. Examples: <br>
+*There is no downside to this strategy other than discounting bytes after the first and requiring manual specification.* It consumes less memory and is faster than other options, because it does skips memory indirection and expensive hash computations. Examples: <br>
 `--char 03` separates column values into those starting with *0,1,2,3*, and *other*.<br>
 `--char BD` separates column values into those starting with *B,C,D*, and *other*.<br>
-`--char yy` denotes that only the categorization *y* vs *other* is expected. This is different than `--binary` in that it does not yield a numerical value but splits categorically.
+`--char yy` denotes that only the categorization *y* vs *other* is expected. Unlike `--binary`, this does not yield a numerical value but creates a categorical split.
 
 </details>
 
