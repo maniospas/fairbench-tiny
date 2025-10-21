@@ -1,6 +1,8 @@
 # fairBench-tiny
 
-This is a high-performance C++ utility for evaluating basic fairness metrics from large tabular datasets.  
+*Fairness metrics at wire speed.*
+
+This is a high-performance C utility for evaluating basic fairness metrics from large tabular datasets.  
 
 It provides a lightweight alternative to the [**FairBench**](https://github.com/mever-team/FairBench) Python framework for bias and fairness assessment. This variation is ideal for environments where speed and memory efficiency are critical by streaming through a file and accumulating values without loading all data in memory.
 
@@ -121,4 +123,35 @@ while True:
 
 ```bash
 python3 examples/streamer.py | ./fbt --stream 1
+```
+
+
+## 🧪 Benchmarks
+
+Benchmarks are lies. But they are useful lies. So here is a comparison using the *perf* tool on a Linux machine
+to repeat a credit dataset analysis 10 times for consistency. Our tasks consists of computing 
+absolute positive rate differences between two sexes on the *Credit* dataset under AIF360 (a very popular fairness analysis library), FairBench, and FairBench-tiny. 
+
+Honestly, there is not much to expect from a comparison of an interpreted vs a compiled framework; the latter will always dominate. But below is a validation of this common engineering truth anyway. Python 3.13.1 is used everywhere.
+
+| Framework | Runtime (sec) | Energy (Joules) | Memory (MB) |
+|------------|--------------|-------------|--------------|
+| **Pandas + AIF360** | 0.72–0.80 | 27.23 | <170 | 
+| **Pandas + FairBench** | 0.35–0.36 | 12–13 | <98 | 
+| **FairBench-tiny** | **0.01–0.03** | **0.4–0.8** | **<2** | 
+
+Python libraries cannot be decoupled from their interpreter in this use case of analyzing a dataset (and potentially predictions) stored in disk. So the above numbers include interpreter startup and dataset loading overheads that consume 0.33–0.36 sec and 12–14 Joules. If these are ignored the FairBench's internal NumPy usage (which wraps compiled code) ends up also being rather lightweight.
+
+FairBench-tiny achieves:
+
+- 17+ lower energy consumption compared to the other frameworks.
+- 30–70x faster execution.  
+- ~50x lower memory usage. Because the input file is streamed instead of being read completely first.
+
+These numbers are pretty normal for Python vs C. The greatest gain from an engineering standpoint is the lightweight file parsing. Commands for transparency and future replicability:
+
+```bash
+make
+sudo perf stat -e power/energy-pkg/ build/fbt examples/credit.fb
+/usr/bin/time -v build/fbt examples/credit.fb
 ```
