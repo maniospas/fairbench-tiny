@@ -140,15 +140,15 @@ Honestly, there is not much to expect from a comparison of an interpreted vs a c
 | **Pandas + FairBench** | 0.35–0.36 | 12–13 | <98 | 
 | **FairBench-tiny** | **0.01–0.03** | **0.4–0.8** | **<2** | 
 
-Python libraries cannot be decoupled from their interpreter in this use case of analyzing a dataset (and potentially predictions) stored in disk. So the above numbers include interpreter startup and dataset loading overheads that consume 0.33–0.36 sec and 12–14 Joules. If these are ignored the FairBench's internal NumPy usage (which wraps compiled code) ends up also being rather lightweight.
+Python libraries cannot be decoupled from their interpreter in this use case of analyzing a dataset (and potentially predictions) stored in disk. So the above numbers include interpreter startup and dataset loading overheads that consume 0.33–0.36 sec and 12–14 Joules. If these are ignored FairBench's internal NumPy usage (which wraps compiled code) ends up also being lightweight.
 
-FairBench-tiny achieves:
+Taking these quantities with a grain of salt in that they are pretty normal when comparing Python vs C implementations, FairBench-tiny achieves:
 
 - 17+ lower energy consumption compared to the other frameworks.
-- 30–70x faster execution.  
-- ~50x lower memory usage. Because the input file is streamed instead of being read completely first.
+- 30–80x faster execution.  
+- ~50x lower memory usage. Because the input file is streamed instead of being read completely first. This is the greatest gain from an engineering standpoint. 
 
-These numbers are pretty normal for Python vs C. The greatest gain from an engineering standpoint is the lightweight file parsing. Commands for transparency and future replicability:
+Commands for transparency and future replicability:
 
 ```bash
 make
